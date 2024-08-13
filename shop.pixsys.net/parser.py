@@ -1,7 +1,4 @@
-create_bad_code = 'asd'
-
-
-
+create_bad_code = "asd"
 
 
 def AsdAsd(asd):
