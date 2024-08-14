@@ -21,6 +21,7 @@ class PixsysSpider(scrapy.Spider):
             "Заголовок": response.css("h1::text").get(),
             "Модель/Тип": response.css("span.navigation_page::text").get(),
             "Condition": response.css("p#product_condition span::text").get(),
+            "Reference": response.css("span.editable:nth-child(2)::text").get(),
             "Цена": float(
                 response.css("div.box-info-product #our_price_display").attrib[
                     "content"
