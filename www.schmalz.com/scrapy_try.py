@@ -3,7 +3,7 @@ import scrapy
 
 class SchmalzSpider(scrapy.Spider):
     name = "schmalz"
-    start_urls = ["https://www.schmalz.com/en-us/"]
+    start_urls = ["https://www.schmalz.com/en-de/"]
 
     def parse(self, response):
         # Find all elements with the "clearfix" class
@@ -13,4 +13,4 @@ class SchmalzSpider(scrapy.Spider):
         for element in clearfix_elements:
             links = element.css("a::attr(href)").getall()
             for link in links:
-                yield {"link": link}
+                yield {"link": "https://www.schmalz.com/en-de/" + link}
