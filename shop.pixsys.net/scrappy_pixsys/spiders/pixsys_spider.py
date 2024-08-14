@@ -16,7 +16,6 @@ class PixsysSpider(scrapy.Spider):
             yield scrapy.Request(url=url, callback=self.parse_product_links)
 
     def parse_product(self, response, **kwargs):
-
         data = {
             "URL страницы": response.url,
             "Заголовок": response.css("h1::text").get(),
@@ -43,7 +42,6 @@ class PixsysSpider(scrapy.Spider):
                 "href"
             ]
             if description_link:
-
                 description_page = requests.get(description_link)
                 if description_page.status_code == 200:
                     soup = BeautifulSoup(description_page.content, "html.parser")
