@@ -1,3 +1,5 @@
+from shutil import which
+
 # Scrapy settings for shop_norelem project
 #
 # For simplicity, this file contains only settings considered important or
@@ -91,3 +93,10 @@ ROBOTSTXT_OBEY = True
 REQUEST_FINGERPRINTER_IMPLEMENTATION = "2.7"
 TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
 FEED_EXPORT_ENCODING = "utf-8"
+
+
+SELENIUM_DRIVER_NAME = "firefox"
+SELENIUM_DRIVER_EXECUTABLE_PATH = which("geckodriver")
+SELENIUM_DRIVER_ARGUMENTS = [
+    "-headless"
+]  # '--headless' if using chrome instead of firefox
