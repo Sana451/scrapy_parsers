@@ -95,9 +95,9 @@ TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
 FEED_EXPORT_ENCODING = "utf-8"
 
 
-# SELENIUM_DRIVER_NAME = "chrome"
-# SELENIUM_DRIVER_EXECUTABLE_PATH = which("geckodriver")
-# SELENIUM_DRIVER_ARGUMENTS = [
-#     "-headless"
-# ]  # '--headless' if using chrome instead of firefox
-SELENIUM_DRIVER_ARGUMENTS = ["--headless=new"]
+DOWNLOAD_HANDLERS = {
+    "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
+    "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
+}
+
+TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"

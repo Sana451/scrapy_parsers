@@ -1,45 +1,58 @@
-from pathlib import Path
+import re
 import requests
 
 import scrapy
 from scrapy.shell import inspect_response
 from bs4 import BeautifulSoup
-from scrapy_selenium import SeleniumRequest
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
 
 
 class QuotesSpider(scrapy.Spider):
     name = "norelem"
 
-    # xml_page = scrapy.Request(xml_url)
-
     def start_requests(self):
-        # urls = [
-        #     "https://norelem.de/sitemap/en-de.xml",
-        # ]
         xml_url = "https://norelem.de/sitemap/en-de.xml"
         xml_page = requests.get(xml_url)
         soup = BeautifulSoup(xml_page.content, "xml")
-        urls = [url.find("loc").text.split()[0] for url in soup.find_all("url")]
-        # for url in urls:
-        #     link =
-        #     links.append(link)
+
+        re_pattern = re.compile(r"^http.+/p/agid.\d+")
+        # re_pattern = re.compile(r"^http.+/p/[\d-]+")
+        urls = []
+        for url in soup.find_all("loc"):
+            if re_pattern.match(url.text):
+                urls.append(url.text)
+
         self.log("\n\n\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-        # self.log(urls)
-        # self.log(type(urls))
-        # self.log(links)
-        # self.log(urls[0].find("loc").text)
+        self.log(len(urls))
         self.log("\n\n\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 
         for url in urls:
-            # yield scrapy.Request(url=link, callback=self.parse)
-            yield SeleniumRequest(url=url, callback=self.parse)
+            yield scrapy.Request(
+                url=url, callback=self.parse, meta={"playwright": True}
+            )
+            # yield SeleniumRequest(url=url, callback=self.parse)
 
     def parse(self, response):
-        self.log(response.request.meta["driver"])
+        # inspect_response(response, self)
 
-        # page = response.url.split("/")[-2]
-        # if response.css("buttor#chooseVariant"):
-        #     inspect_response(response, self)
-        inspect_response(response, self)
+        yield {
+            # "Заголовок товара": "response.css('h1.product-details__name::text').get()",
+            "Заголовок товара": "response.css('h1.product-details__name::text').get()",
+            "Артикул": "",
+            "Модель": "",
+            "Цена": float(
+                response.css(
+                    "div.-is-family-page span.product-price__net-price span::text"
+                )
+                .get()
+                .strip("€")
+                .replace(",", ".")
+            ),
+            "Цена со скидкой": "",
+            "Наличие": "",
+            "Картинки": "",
+            "PDF": "",
+            "Краткое описание": "",
+            "Полное описание": "",
+            "Характеристики": "",
+            "Категории": "",
+        }
