@@ -8,8 +8,6 @@ from scrapy.shell import inspect_response
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver import ActionChains
-from selenium.webdriver.common.actions.wheel_input import ScrollOrigin
-from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -24,51 +22,23 @@ class QuotesSpider(scrapy.Spider):
         soup = BeautifulSoup(xml_page.content, "xml")
 
         re_pattern = re.compile(r"^http.+/p/agid.\d+")
-        # re_pattern = re.compile(r"^http.+/p/[\d-]+")
         urls = []
         for url in soup.find_all("loc"):
             if re_pattern.match(url.text):
                 urls.append(url.text)
 
-        # self.log("\n\n\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-        # self.log(len(urls))
-        # # self.log(urls)
-        # self.log("\n\n\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-
-        for url in urls[:10]:
+        for url in urls[:1]:
             yield scrapy.Request(
-                url=url, callback=self.parse, meta={"playwright": True}
+                url=url,
+                callback=self.parse,
+                meta={
+                    "playwright": True,
+                    "proxy": "http://168.228.47.129:9197:PHchyV:qvzX3m",
+                },
             )
-            # yield SeleniumRequest(url=url, callback=self.parse)
 
     def parse_product_page(self, response):
         # inspect_response(response, self)
-
-        yield {
-            "Заголовок товара": response.css("h1.product-details__name::text").get(),
-            "Артикул (Order number)": response.css(
-                "div.product-details__product-number::text"
-            ).get(),
-            # "Модель": "",
-            "Цена": Decimal(
-                response.css("p.price::text").get().strip().strip("€").replace(",", "")
-            ),
-            # "Цена со скидкой": "",
-            "Наличие": response.css(
-                "span.product-stock-level__localization::text"
-            ).get(),
-            "Картинки": f"https://norelem.de/{response.css('div.product-details-spacing img')[0].attrib['src']} | "
-            f"https://norelem.de/{response.css('div.product-details-spacing img')[1].attrib['src']}",
-            # "PDF": "",
-            # "Краткое описание": "",
-            # "Полное описание": "",
-            # "Характеристики": "",
-            # "Категории": "",
-        }
-
-    def parse(self, response):
-        # inspect_response(response, self)
-
         if response.css("button#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll"):
             driver = webdriver.Chrome()
             driver.get(response.url)
@@ -83,7 +53,50 @@ class QuotesSpider(scrapy.Spider):
 
             button.click()
 
-            for i in range(50):
+        yield {
+            "Заголовок товара": response.css("h1.product-details__name::text").get(),
+            # "Артикул (Order number)": response.css(
+            #     "div.product-details__product-number::text"
+            # ).get(),
+            "Артикул (Order number)": response.css("span.active::text").get(),
+            # "Модель": "",
+            "Цена": Decimal(
+                response.css("p.price::text").get().strip().strip("€").replace(",", "")
+            ),
+            "Цена со скидкой": "",
+            "Наличие": self.availability,
+            # "Наличие": response.css(
+            #     "span.product-stock-level__localization::text"
+            # ).get(),
+            # "Наличие": driver.find_element(
+            #     By.CSS_SELECTOR, "span.product-stock-level__localization"
+            # ).text,
+            "Картинки": f"https://norelem.de/{response.css('div.product-details-spacing img')[0].attrib['src']} | "
+            f"https://norelem.de/{response.css('div.product-details-spacing img')[1].attrib['src']}",
+            # "PDF": "",
+            # "Краткое описание": "",
+            # "Полное описание": "",
+            # "Характеристики": "",
+            # "Категории": "",
+        }
+
+    def parse(self, response):
+        # inspect_response(response, self)
+        if response.css("button#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll"):
+            driver = webdriver.Chrome()
+            driver.get(response.url)
+            button = WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located(
+                    (
+                        By.CSS_SELECTOR,
+                        "button#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll",
+                    )
+                )
+            )
+
+            button.click()
+
+            for i in range(40):
                 ActionChains(driver).scroll_by_amount(0, i).perform()
 
             WebDriverWait(driver, 40).until(
@@ -95,14 +108,33 @@ class QuotesSpider(scrapy.Spider):
                 )
             )
             a_tags = driver.find_elements(
-                By.CSS_SELECTOR, "div.product-table a[data-id]"
+                By.CSS_SELECTOR, "div.product-table a[data-id][href]"
             )
+            availabilityes = driver.find_elements(
+                By.CSS_SELECTOR, "div.product-table .product-stock-level__lights[title]"
+            )
+            # inspect_response(response, self)
 
             # self.log("\n\n\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-            # self.log(a_tags)
+            #
+            # self.log(availabilityes)
+            # self.log(availabilityes[0])
+            # self.log(len(availabilityes))
+            #
             # self.log("\n\n\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+            # inspect_response(response, self)
 
-            for a in a_tags:
-                product_page = a.get_attribute("href")
+            for i in range(len(a_tags)):
+                product_page = a_tags[i].get_attribute("href")
+                self.availability = availabilityes[i].get_attribute("title")
                 driver.close()
-                yield scrapy.Request(product_page, callback=self.parse_product_page)
+
+                yield scrapy.Request(
+                    product_page,
+                    callback=self.parse_product_page,
+                    meta={
+                        "playwright": True,
+                        "proxy": "http://168.228.47.129:9197:PHchyV:qvzX3m",
+                    },
+                )
+
