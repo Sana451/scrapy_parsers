@@ -7,14 +7,33 @@ import scrapy
 from scrapy.shell import inspect_response
 from bs4 import BeautifulSoup
 from selenium import webdriver
+from selenium.common import TimeoutException
 from selenium.webdriver import ActionChains
 from selenium.webdriver.common.by import By
+from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 
-class QuotesSpider(scrapy.Spider):
-    name = "norelem"
+def click_cookie_bot(browser, url):
+    browser.get(url)
+
+    button = WebDriverWait(browser, 20).until(
+        EC.element_to_be_clickable(
+            (
+                By.CSS_SELECTOR,
+                "button#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll",
+            )
+        )
+    )
+    if isinstance(button, WebElement):
+        button.click()
+    else:
+        click_cookie_bot(browser, url)
+
+
+class FamilyLinksSpider(scrapy.Spider):
+    name = "family_links"
 
     def start_requests(self):
         xml_url = "https://norelem.de/sitemap/en-de.xml"
@@ -27,7 +46,7 @@ class QuotesSpider(scrapy.Spider):
             if re_pattern.match(url.text):
                 urls.append(url.text)
 
-        for url in urls[:1]:
+        for url in urls:
             yield scrapy.Request(
                 url=url,
                 callback=self.parse,
@@ -37,7 +56,81 @@ class QuotesSpider(scrapy.Spider):
                 },
             )
 
-    def parse_product_page(self, response):
+    def parse(self, response):
+        browser = webdriver.Chrome()
+
+        if response.css("button#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll"):
+            click_cookie_bot(browser, response.url)
+
+        table = False
+        while table is False:
+            for i in range(10):
+                ActionChains(browser).scroll_by_amount(0, i).perform()
+            try:
+                table = WebDriverWait(browser, 1).until(
+                    EC.presence_of_element_located(
+                        (
+                            By.CSS_SELECTOR,
+                            "div.product-table a[data-id]",
+                        )
+                    )
+                )
+            except TimeoutException:
+                pass
+
+        a_tags = browser.find_elements(
+            By.CSS_SELECTOR, "div.product-table a[data-id][href]"
+        )
+        links = [a.get_attribute("href") for a in a_tags]
+
+        availabilityes = browser.find_elements(
+            By.CSS_SELECTOR, "div.product-table .product-stock-level__lights[title]"
+        )
+
+        for link in links:
+            yield {"product_links": link, "family_links": response.url}
+            # inspect_response(response, self)
+
+            # inspect_response(response, self)
+
+            # for i in range(len(a_tags)):
+            #     product_page = a_tags[i].get_attribute("href")
+            #     self.availability = availabilityes[i].get_attribute("title")
+            #     driver.close()
+
+            # yield scrapy.Request(
+            #     product_page,
+            #     callback=self.parse_product_page,
+            #     meta={
+            #         "playwright": True,
+            #         "proxy": "http://168.228.47.129:9197:PHchyV:qvzX3m",
+            #     },
+            # )
+
+
+class ProductSpider(scrapy.Spider):
+    name = "products"
+
+    def start_requests(self):
+        with open("./links.csv", "r") as file:
+            read_file = file.readlines()
+            for url in read_file[1:]:
+                page_url = url.strip()
+
+                self.log("\n\n!!!!!!!!!!!!!!!")
+                self.log(page_url)
+                self.log("\n\n!!!!!!!!!!!!!!!")
+
+                yield scrapy.Request(
+                    url=page_url,
+                    callback=self.parse,
+                    meta={
+                        "playwright": True,
+                        "proxy": "http://168.228.47.129:9197:PHchyV:qvzX3m",
+                    },
+                )
+
+    def parse(self, response):
         # inspect_response(response, self)
         if response.css("button#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll"):
             driver = webdriver.Chrome()
@@ -64,7 +157,7 @@ class QuotesSpider(scrapy.Spider):
                 response.css("p.price::text").get().strip().strip("€").replace(",", "")
             ),
             "Цена со скидкой": "",
-            "Наличие": self.availability,
+            # "Наличие": self.availability,
             # "Наличие": response.css(
             #     "span.product-stock-level__localization::text"
             # ).get(),
@@ -79,62 +172,3 @@ class QuotesSpider(scrapy.Spider):
             # "Характеристики": "",
             # "Категории": "",
         }
-
-    def parse(self, response):
-        # inspect_response(response, self)
-        if response.css("button#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll"):
-            driver = webdriver.Chrome()
-            driver.get(response.url)
-            button = WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located(
-                    (
-                        By.CSS_SELECTOR,
-                        "button#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll",
-                    )
-                )
-            )
-
-            button.click()
-
-            for i in range(40):
-                ActionChains(driver).scroll_by_amount(0, i).perform()
-
-            WebDriverWait(driver, 40).until(
-                EC.presence_of_element_located(
-                    (
-                        By.CSS_SELECTOR,
-                        "div.product-table a[data-id]",
-                    )
-                )
-            )
-            a_tags = driver.find_elements(
-                By.CSS_SELECTOR, "div.product-table a[data-id][href]"
-            )
-            availabilityes = driver.find_elements(
-                By.CSS_SELECTOR, "div.product-table .product-stock-level__lights[title]"
-            )
-            # inspect_response(response, self)
-
-            # self.log("\n\n\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-            #
-            # self.log(availabilityes)
-            # self.log(availabilityes[0])
-            # self.log(len(availabilityes))
-            #
-            # self.log("\n\n\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-            # inspect_response(response, self)
-
-            for i in range(len(a_tags)):
-                product_page = a_tags[i].get_attribute("href")
-                self.availability = availabilityes[i].get_attribute("title")
-                driver.close()
-
-                yield scrapy.Request(
-                    product_page,
-                    callback=self.parse_product_page,
-                    meta={
-                        "playwright": True,
-                        "proxy": "http://168.228.47.129:9197:PHchyV:qvzX3m",
-                    },
-                )
-
