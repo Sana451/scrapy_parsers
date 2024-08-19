@@ -1,3 +1,4 @@
+import csv
 import time
 from decimal import Decimal
 import re
@@ -13,6 +14,9 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+
+
+HOSTNAME = "https://norelem.de"
 
 
 def click_cookie_bot(browser, url):
@@ -46,7 +50,7 @@ class FamilyLinksSpider(scrapy.Spider):
             if re_pattern.match(url.text):
                 urls.append(url.text)
 
-        for url in urls:
+        for url in urls[:2]:
             yield scrapy.Request(
                 url=url,
                 callback=self.parse,
@@ -83,43 +87,21 @@ class FamilyLinksSpider(scrapy.Spider):
         )
         links = [a.get_attribute("href") for a in a_tags]
 
-        availabilityes = browser.find_elements(
-            By.CSS_SELECTOR, "div.product-table .product-stock-level__lights[title]"
-        )
-
         for link in links:
             yield {"product_links": link, "family_links": response.url}
-            # inspect_response(response, self)
-
-            # inspect_response(response, self)
-
-            # for i in range(len(a_tags)):
-            #     product_page = a_tags[i].get_attribute("href")
-            #     self.availability = availabilityes[i].get_attribute("title")
-            #     driver.close()
-
-            # yield scrapy.Request(
-            #     product_page,
-            #     callback=self.parse_product_page,
-            #     meta={
-            #         "playwright": True,
-            #         "proxy": "http://168.228.47.129:9197:PHchyV:qvzX3m",
-            #     },
-            # )
 
 
 class ProductSpider(scrapy.Spider):
     name = "products"
 
     def start_requests(self):
-        with open("./links.csv", "r") as file:
-            read_file = file.readlines()
-            for url in read_file[1:]:
-                page_url = url.strip()
+        with open("./links.csv", "r") as csvfile:
+            reader = csv.reader(csvfile)
+            links_data = list(reader)
 
-                self.log("\n\n!!!!!!!!!!!!!!!")
-                self.log(page_url)
-                self.log("\n\n!!!!!!!!!!!!!!!")
+            for row in links_data[1:]:  # Первый элемент - названия полей
+                page_url = row[0]
+                # family_url = row[1]
 
                 yield scrapy.Request(
                     url=page_url,
@@ -131,7 +113,6 @@ class ProductSpider(scrapy.Spider):
                 )
 
     def parse(self, response):
-        # inspect_response(response, self)
         if response.css("button#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll"):
             driver = webdriver.Chrome()
             driver.get(response.url)
@@ -145,30 +126,41 @@ class ProductSpider(scrapy.Spider):
             )
 
             button.click()
-
         yield {
             "Заголовок товара": response.css("h1.product-details__name::text").get(),
-            # "Артикул (Order number)": response.css(
-            #     "div.product-details__product-number::text"
-            # ).get(),
-            "Артикул (Order number)": response.css("span.active::text").get(),
-            # "Модель": "",
+            "Order number": response.css(
+                "span.product-details__product-number-text::text"
+            ).get(),
             "Цена": Decimal(
                 response.css("p.price::text").get().strip().strip("€").replace(",", "")
             ),
-            "Цена со скидкой": "",
-            # "Наличие": self.availability,
-            # "Наличие": response.css(
-            #     "span.product-stock-level__localization::text"
-            # ).get(),
-            # "Наличие": driver.find_element(
-            #     By.CSS_SELECTOR, "span.product-stock-level__localization"
-            # ).text,
-            "Картинки": f"https://norelem.de/{response.css('div.product-details-spacing img')[0].attrib['src']} | "
-            f"https://norelem.de/{response.css('div.product-details-spacing img')[1].attrib['src']}",
-            # "PDF": "",
-            # "Краткое описание": "",
-            # "Полное описание": "",
-            # "Характеристики": "",
-            # "Категории": "",
+            "Наличие": response.css(
+                "span.product-stock-level__localization::text"
+            ).get(),
+            "Features": ", ".join(
+                [
+                    i.strip()
+                    for i in response.css(
+                        "div.product-details__features::text"
+                    ).getall()
+                ]
+            ),
+            "PDF": f"{HOSTNAME}/{response.css('a.link-panel').attrib['href']}",
+            "Картинки": " | ".join(
+                [
+                    f"{HOSTNAME}{i.attrib['src']}"
+                    for i in response.css("div.product-details-spacing img")
+                    if "Thumbnail" not in i.attrib["src"]
+                ]
+            ),
+            "Характеристики (details)": response.css("div.category-texts").get(),
+            "Категории": " > ".join(
+                [
+                    li.css("::text").get()
+                    for li in response.css(
+                        "div.breadcrumb-mobile__wrapper ol.breadcrumb li"
+                    )[1:]
+                ]
+            ),
+            "url": response.url,
         }
