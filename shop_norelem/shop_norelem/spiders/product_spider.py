@@ -38,6 +38,8 @@ class ProductSpider(scrapy.Spider):
         if response.css("button#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll"):
             click_cookie_bot(browser, response.url)
 
+        browser.quit()
+
         yield {
             "Заголовок товара": response.css("h1.product-details__name::text").get(),
             "Order number": response.css(
