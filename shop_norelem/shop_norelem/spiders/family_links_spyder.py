@@ -70,8 +70,8 @@ class FamilyLinksSpider(scrapy.Spider):
         a_tags = browser.find_elements(
             By.CSS_SELECTOR, "div.product-table a[data-id][href]"
         )
-        browser.quit()
         links = [a.get_attribute("href") for a in a_tags]
+        browser.quit()
 
         for link in links:
             yield {"product_links": link, "family_links": response.url}
