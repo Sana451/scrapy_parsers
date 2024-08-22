@@ -33,12 +33,12 @@ class ProductSpider(scrapy.Spider):
                 )
 
     def parse(self, response):
-        browser = webdriver.Chrome()
-
-        if response.css("button#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll"):
-            click_cookie_bot(browser, response.url)
-
-        browser.quit()
+        # browser = webdriver.Chrome()
+        #
+        # if response.css("button#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll"):
+        #     click_cookie_bot(browser, response.url)
+        #
+        # browser.quit()
 
         yield {
             "Заголовок товара": response.css("h1.product-details__name::text").get(),
