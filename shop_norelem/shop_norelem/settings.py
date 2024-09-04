@@ -101,3 +101,10 @@ DOWNLOAD_HANDLERS = {
 }
 
 TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
+
+DOWNLOADER_MIDDLEWARES = {
+    "rotating_proxies.middlewares.RotatingProxyMiddleware": 610,
+    "rotating_proxies.middlewares.BanDetectionMiddleware": 620,
+}
+
+# ROTATING_PROXY_LIST_PATH = "/home/sana451/PycharmProjects/scrapy_norelem/parsers/shop_norelem/shop_norelem/proxies.txt"
