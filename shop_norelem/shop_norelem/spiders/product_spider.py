@@ -1,10 +1,9 @@
 import csv
 from decimal import Decimal
+import pathlib
 
 import scrapy
 import bs4
-from scrapy_playwright.page import PageMethod
-from scrapy.shell import inspect_response
 from selenium import webdriver
 from tabulate import tabulate
 
@@ -13,7 +12,11 @@ from .spider_tools import (
     HOSTNAME,
 )
 
-ERROR_FILE_NAME = "error_add_links2.csv"
+BASE_DIR = pathlib.Path("__file__").resolve().parent
+RESULTS_DIR = BASE_DIR / "results"
+LINKS_DIR = BASE_DIR / "links"
+ERRORS_DIR = BASE_DIR / "errors"
+ERRORS_FILENAME = ERRORS_DIR / "errors.csv"
 
 
 def create_html_table(html: str) -> str:
@@ -78,11 +81,9 @@ class ProductSpider(scrapy.Spider):
     def start_requests(self):
         error_product_urls = []
 
-        with open("/home/sana451/PycharmProjects/scrapy_norelem/parsers/shop_norelem/shop_norelem/add_links2.csv",
-                  "r") as csvfile:
-
+        with (LINKS_DIR/"links.csv").open(mode="r") as csvfile:
             reader = csv.reader(csvfile)
-            links_data = list(reader)
+            links_data = list(reader)[:5]
 
             # for row in links_data[1:]:  # Первый элемент - названия полей
             for row in links_data:  # Первый элемент - названия полей
@@ -115,7 +116,7 @@ class ProductSpider(scrapy.Spider):
                     )
                 except Exception as error:
                     error_product_urls.append(page_url)
-                    with open(ERROR_FILE_NAME, "a") as error_csvfile:
+                    with open(ERRORS_FILENAME, "a") as error_csvfile:
                         writer = csv.writer(error_csvfile, delimiter=",")
                         writer.writerow([page_url, error, type(error)])
                         self.log(error_product_urls)
@@ -123,7 +124,7 @@ class ProductSpider(scrapy.Spider):
 
     async def errback(self, failure):
         page = failure.request.meta["playwright_page"]
-        with open(ERROR_FILE_NAME, "a") as error_csvfile:
+        with open(ERRORS_FILENAME, "a") as error_csvfile:
             writer = csv.writer(error_csvfile, delimiter=",")
             writer.writerow([failure.request.url, failure, type(failure)])
             self.log(failure.request.cb_kwargs["error_product_urls"])
@@ -180,7 +181,7 @@ class ProductSpider(scrapy.Spider):
         except Exception as error:
             # inspect_response(response, self)
             error_product_urls.append(response.url)
-            with open(ERROR_FILE_NAME, "a") as error_csvfile:
+            with open(ERRORS_FILENAME, "a") as error_csvfile:
                 writer = csv.writer(error_csvfile, delimiter=",")
                 writer.writerow([response.url, error, type(error)])
                 self.log(error_product_urls)

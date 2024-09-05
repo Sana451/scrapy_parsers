@@ -35,10 +35,10 @@ def create_html_table(html: str) -> str:
 # html = tabulate(table, tablefmt="html")
 # import csv
 #
-with open("new_res3.csv", "w", newline="") as new_csvfile:
+with open("results/new_res3.csv", "w", newline="") as new_csvfile:
     writer = csv.writer(new_csvfile, delimiter=",")
 
-    with open("my_results.csv", "r") as old_csvfile:
+    with open("results/my_results.csv", "r") as old_csvfile:
         reader = csv.reader(old_csvfile)
         data = list(reader)
         writer.writerow(data[0])
