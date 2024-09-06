@@ -83,6 +83,10 @@ class LinkSpider(scrapy.Spider):
         #
         urls = []
 
+        with open(LINKS_DIR/"industriation.ru_links.csv", "r") as csvfile:
+            reader = csv.reader(csvfile)
+            urls = list(reader)
+
         # if Path(LINKS_DIR / "links.csv").exists():
         #     with (LINKS_DIR / "links.csv").open("r") as links_csv_file:
         #         links = links_csv_file.readlines()
@@ -99,20 +103,21 @@ class LinkSpider(scrapy.Spider):
         #                 writer.writerow([link])
 
         # else:
-        only_AirTac_products = [f"https://industriation.ru/search/?search=AirTac&page={i}" for i in range(202)]
-
-        for group_link in only_AirTac_products:
-            group_link_soup = BeautifulSoup(requests.get(group_link).content)
-            airtag_links = [a["href"] for a in group_link_soup.select("div.product-card div.name a")]
-            urls.extend(airtag_links)
-            with open(LINKS_DIR / "links.csv", "a") as link_file:
-                writer = csv.writer(link_file)
-                for link in airtag_links:
-                    writer.writerow([link])
+        # only_AirTac_products = [f"https://industriation.ru/search/?search=AirTac&page={i}" for i in range(202)]
+        #
+        # for group_link in only_AirTac_products:
+        #     group_link_soup = BeautifulSoup(requests.get(group_link).content)
+        #     airtag_links = [a["href"] for a in group_link_soup.select("div.product-card div.name a")]
+        #     urls.extend(airtag_links)
+        #     with open(LINKS_DIR / "links.csv", "a") as link_file:
+        #         writer = csv.writer(link_file)
+        #         for link in airtag_links:
+        #             writer.writerow([link])
 
         for url in urls:
             # yield scrapy.Request(url=url.strip(), callback=self.parse)  # для всего сайта
-            yield scrapy.Request(url=url, callback=self.parse)
+            # yield scrapy.Request(url=url, callback=self.parse)
+            yield scrapy.Request(url=url[0].strip(), callback=self.parse)
 
     def parse(self, response):
         result = dict()
