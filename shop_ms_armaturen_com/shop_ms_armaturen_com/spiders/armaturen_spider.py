@@ -9,22 +9,24 @@ import scrapy
 from scrapy.shell import inspect_response
 from tabulate import tabulate
 
-SITEMAP_URL = "https://industriation.ru/sitemap/"
+# SITEMAP_URL = "https://industriation.ru/sitemap/"
 
-BASE_DIR = Path("__file__").resolve().parent
+CURRENT_DIR = Path("__file__").resolve()
+BASE_DIR = CURRENT_DIR.parent
 RESULTS_DIR = BASE_DIR / "results"
 LINKS_DIR = BASE_DIR / "links"
 ERRORS_DIR = BASE_DIR / "errors"
 ERRORS_FILENAME = ERRORS_DIR / "errors.csv"
 
-SITE_DOMAIN = "https://industriation.ru"
+
+# SITE_DOMAIN = "https://industriation.ru"
 
 
 def del_classes_from_html(html: str) -> str:
     soup = BeautifulSoup(html, "html.parser")
 
     for tag in soup():
-        for attribute in ["class", "style", "id", "scope", "data-th", "target"]:
+        for attribute in ["class", "style", "id", "scope", "data-th", "target", "itemprop", "content"]:
             del tag[attribute]
 
     return str(soup)
@@ -49,22 +51,28 @@ def create_html_table(html: str) -> str:
     #         for attribute in ["class"]:
     #             del tag[attribute]
     res = []
-    for span in soup.find_all("span"):
-        res.append((span.text, span.findNext().text))
+    divs = soup.find_all("div")
+    for div in divs:
+        span_list = div.find_all("span")
+        if len(span_list) == 2:
+            res.append(i.text.strip() for i in span_list)
+    # spans = soup.find_all("span")
+    # for i in range(0, len(spans), 2):
+    #     res.append((spans[i].text.strip(), spans[i + 1].text.strip()))
 
     html = tabulate(res, tablefmt="html").replace("\n", "")
 
     return html
 
 
-def save_error(url, error, field, err_file_path=ERRORS_FILENAME):
+def save_error(url, error, field, err_file_path=ERRORS_FILENAME, *args, **kwargs):
     with open(err_file_path, "a") as error_csvfile:
         writer = csv.writer(error_csvfile)
         writer.writerow([url, field, type(error), error])
 
 
-class LinkSpider(scrapy.Spider):
-    name = "industriation"
+class ArmaturenSpider(scrapy.Spider):
+    name = "armaturen"
 
     custom_settings = {
         # "CONCURRENT_REQUESTS": 30,
@@ -83,6 +91,10 @@ class LinkSpider(scrapy.Spider):
         #
         urls = []
 
+        with open(LINKS_DIR / "shop.ms-armaturen.com_all_links.csv") as csvfile:
+            reader = csv.reader(csvfile)
+            urls = list(reader)
+
         # if Path(LINKS_DIR / "links.csv").exists():
         #     with (LINKS_DIR / "links.csv").open("r") as links_csv_file:
         #         links = links_csv_file.readlines()
@@ -99,20 +111,19 @@ class LinkSpider(scrapy.Spider):
         #                 writer.writerow([link])
 
         # else:
-        only_AirTac_products = [f"https://industriation.ru/search/?search=AirTac&page={i}" for i in range(202)]
-
-        for group_link in only_AirTac_products:
-            group_link_soup = BeautifulSoup(requests.get(group_link).content)
-            airtag_links = [a["href"] for a in group_link_soup.select("div.product-card div.name a")]
-            urls.extend(airtag_links)
-            with open(LINKS_DIR / "links.csv", "a") as link_file:
-                writer = csv.writer(link_file)
-                for link in airtag_links:
-                    writer.writerow([link])
+        # only_AirTac_products = [f"https://industriation.ru/search/?search=AirTac&page={i}" for i in range(202)]
+        #
+        # for group_link in only_AirTac_products:
+        #     group_link_soup = BeautifulSoup(requests.get(group_link).content)
+        #     airtag_links = [a["href"] for a in group_link_soup.select("div.product-card div.name a")]
+        #     urls.extend(airtag_links)
+        #     with open(LINKS_DIR / "links.csv", "a") as link_file:
+        #         writer = csv.writer(link_file)
+        #         for link in airtag_links:
+        #             writer.writerow([link])
 
         for url in urls:
-            # yield scrapy.Request(url=url.strip(), callback=self.parse)  # для всего сайта
-            yield scrapy.Request(url=url, callback=self.parse)
+            yield scrapy.Request(url=url[0], callback=self.parse, errback=self.errback)
 
     def parse(self, response):
         result = dict()
@@ -126,126 +137,114 @@ class LinkSpider(scrapy.Spider):
         try:
             field_name = "Заголовок"
             # inspect_response(response, self)
-            result[field_name] = response.css("h1.heading-title::text").get()
+            result[field_name] = response.css("h1::text").get().strip()
         except Exception as error:
             save_error(response.url, error, field_name)
 
         try:
             field_name = "Артикул"
             # inspect_response(response, self)
-            result[field_name] = response.xpath("//div[contains(text(), 'Артикул')]").css("span::text").get()
+            article = response.css(".product-detail-ordernumber::text").get()
+            if article:
+                result[field_name] = article.strip()
+            else:
+                result[field_name] = ""
         except Exception as error:
             save_error(response.url, error, field_name)
 
-        description_soup = BeautifulSoup(response.css("div#description").get())
+        try:
+            field_name = "Version (модель)"
+            # inspect_response(response, self)
+            version = response.xpath("//span[contains(text(), 'version')]/..").css(".properties-value::text").get()
+            if version:
+                result[field_name] = version.strip()
+            else:
+                result[field_name] = ""
+        except Exception as error:
+            save_error(response.url, error, field_name)
 
         try:
             field_name = "Производитель"
             # inspect_response(response, self)
-            try:
-                manufacturer = [i for i in description_soup.select(".row") if field_name in i.text][0].find_all("div")[
-                    1].text.strip()
-                result[field_name] = manufacturer
-            except IndexError:
+            manufacturer = response.css(".twt-product-detail-manufacturer::text").get()
+            if manufacturer:
+                result[field_name] = manufacturer.strip()
+            else:
                 result[field_name] = ""
-                # save_error(response.url, error, field_name)
         except Exception as error:
             save_error(response.url, error, field_name)
 
         try:
-            field_name = "Наименование"
+            field_name = "Характеристики"
             # inspect_response(response, self)
-            try:
-                designation = [i for i in description_soup.select(".row") if field_name in i.text][0].find_all("div")[
-                    1].text.strip()
-                result[field_name] = designation
-            except IndexError:
+            description = response.css("div.product-detail-properties-text").get()
+            if not description:
+                description = response.css("div.order-nr-wrap").get()
+            if description:
+                description = del_classes_from_html(description)
+                description = create_html_table(description)
+                result[field_name] = description
+            else:
                 result[field_name] = ""
-                # save_error(response.url, error, field_name)
         except Exception as error:
             save_error(response.url, error, field_name)
-
-        try:
-            field_name = "Тип оборудования"
-            # inspect_response(response, self)
-            try:
-                equipment_type = \
-                    [i for i in description_soup.select(".row") if field_name in i.text][0].find_all("div")[
-                        1].text.strip()
-                result[field_name] = equipment_type
-            except IndexError:
-                result[field_name] = ""
-                # save_error(response.url, error, field_name)
-        except Exception as error:
-            save_error(response.url, error, field_name)
-
-        try:
-            field_name = "Технические характеристики"
-            # inspect_response(response, self)
-            copy_description_soup = description_soup
-            body = copy_description_soup.find("body").find("div")
-            body.select_one("div.mini-text").extract()
-            body = del_classes_from_html(str(body))
-            body = create_html_table(str(body))
-            result[field_name] = body
-        except Exception as error:
-            save_error(response.url, error, field_name)
-
+        #
         try:
             field_name = "Вес"
             # inspect_response(response, self)
-            try:
-                weight = \
-                    [i for i in description_soup.select(".row") if field_name in i.text][0].find_all("div")[
-                        1].text.strip()
-                result[field_name] = weight
-            except IndexError:
+            weight = response.css(".twt-product-detail-weight::text").get()
+            if weight:
+                result[field_name] = weight.strip()
+            else:
                 result[field_name] = ""
-                # save_error(response.url, error, field_name)
         except Exception as error:
             save_error(response.url, error, field_name)
 
         try:
             field_name = "Картинки"
             # inspect_response(response, self)
-            main_image = response.css("div#images img.image").attrib['src']
-            other_images = response.xpath("//img[@data-zoom]")[1:]
-            if not other_images:
-                result[field_name] = main_image
-            else:
-                zoom_images = [img.attrib['data-zoom'] for img in other_images]
-                result[field_name] = " | ".join([main_image] + zoom_images)
-        except Exception as error:
-            save_error(response.url, error, field_name)
-
-        try:
-            field_name = "Цена"
-            # inspect_response(response, self)
-            price = response.css("div.price::text").get()
-            if price:
-                result[field_name] = price.strip("₽")
+            images = [img.attrib['data-src'] for img in response.css(".gallery-slider-thumbnails img[data-src]")]
+            if images:
+                result[field_name] = " | ".join(images)
             else:
                 result[field_name] = ""
         except Exception as error:
             save_error(response.url, error, field_name)
 
         try:
-            field_name = "PDF"
+            field_name = "Цена"
             # inspect_response(response, self)
-            pdf = [SITE_DOMAIN + link.attrib['data-file'] for link in response.css("div.file") if
-                   "series_group-docs" in link.attrib['data-file']]
-            result[field_name] = " | ".join(pdf)
+            price = response.css(".product-detail-price::text").get()
+            if price:
+                result[field_name] = price.strip().lstrip("Catalog price: €").rstrip("*")
+            else:
+                result[field_name] = ""
         except Exception as error:
             save_error(response.url, error, field_name)
 
         try:
-            field_name = "Категории"
+            field_name = "Наличие"
             # inspect_response(response, self)
-            categories = [i.attrib['title'] for i in response.css("div.breadcrumbs li a")][2:]
-            result[field_name] = " > ".join(categories)
+            availability = response.css(".product-detail-delivery-information p::text").get()
+            if availability:
+                result[field_name] = availability.strip()
+            else:
+                result[field_name] = ""
         except Exception as error:
             save_error(response.url, error, field_name)
 
+        #
+        # try:
+        #     field_name = "Категории"
+        #     # inspect_response(response, self)
+        #     categories = [i.attrib['title'] for i in response.css("div.breadcrumbs li a")][2:]
+        #     result[field_name] = " > ".join(categories)
+        # except Exception as error:
+        #     save_error(response.url, error, field_name)
+
         yield result
+
+    async def errback(self, failure):
+        save_error(failure.request.url, failure, "ERRBACK", err_file_path=ERRORS_DIR / "errback.csv")
 
 # from industriation_ru.spiders.link_spyder import *
