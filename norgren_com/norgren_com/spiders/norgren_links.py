@@ -125,18 +125,10 @@ class NorgrenLinksSpider(scrapy.Spider):
     name = "norgren_links"
     allowed_domains = ["www.norgren.com"]
 
-    # custom_settings = {
-    #     "DOWNLOAD_HANDLERS": {
-    #         "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
-    #         "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
-    #     },
-    #     "TWISTED_REACTORTWISTED_REACTOR": "twisted.internet.asyncioreactor.AsyncioSelectorReactor",
-    # }
-
     def start_requests(self):
         with open(RESULTS_DIR / "cactegories_links.csv") as cat_links_file:
             reader = csv.reader(cat_links_file)
-            start_urls = list(reader)[1:]
+            start_urls = list(reader)[:1]
 
         for url in start_urls:
             yield scrapy.Request(url=url[0],
@@ -146,53 +138,47 @@ class NorgrenLinksSpider(scrapy.Spider):
 
     def parse(self, response, **kwargs):
         options = webdriver.ChromeOptions()
-        options.add_argument("--headless=new")
+        # options.add_argument("--headless=new")
         browser = webdriver.Chrome(options=options)
         browser.get(response.url)
-        browser.implicitly_wait(5)
-
+        # browser.implicitly_wait(5)
         urls = browser.find_elements(By.CSS_SELECTOR, "body h4 a")
         # inspect_response(response, self)
         # urls = response.css("div.product-category-lister a")
         # self.log("!!!!!!!!!!", len(urls))
         if urls:
             for url in urls:
-                yield {
-                    # "url": DOMAIN + url.attrib['href']
-                    "url": url.get_attribute('href')
-                    # "url": DOMAIN + url.get_attribute('href')
-                }
-        try:
-            next_page = browser.find_element(By.CSS_SELECTOR, "link[rel='next']")
-        except NoSuchElementException:
-            next_page = None
-            browser.close()
-        if next_page is not None:
-            next_page_url = next_page.get_attribute("href")
-            browser.close()
-            yield response.follow(next_page_url, callback=self.parse)
+                try:
+                    yield {
+                        "url": url.get_attribute('href')
+                    }
+                except Exception as error:
+                    save_error(response.url, error, "links")
+        # try:
+        #     next_page = browser.find_element(By.CSS_SELECTOR, "link[rel='next']")
+        # except NoSuchElementException:
+        #     next_page = None
+        #     browser.quit()
+        # if next_page is not None:
+        #     next_page_url = next_page.get_attribute("href")
+        #     browser.quit()
+        #     yield response.follow(next_page_url, callback=self.parse)
 
     async def errback(self, failure):
         save_error(failure.request.url, failure, "ERRBACK", err_file_path=ERRORS_DIR / "errback.csv")
+
+
+TIMEOUT = 5
 
 
 class NorgrenProductsSpider(scrapy.Spider):
     name = "product_spider"
     allowed_domains = ["www.norgren.com"]
 
-    # custom_settings = {
-    #     "DOWNLOAD_HANDLERS": {
-    #         "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
-    #         "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
-    #     },
-    #     "TWISTED_REACTORTWISTED_REACTOR": "twisted.internet.asyncioreactor.AsyncioSelectorReactor",
-    # }
-
     def start_requests(self):
-        with open(RESULTS_DIR / "product_norgen_all.csv") as cat_links_file:
+        with open(RESULTS_DIR / "product_links_v2.csv") as cat_links_file:
             reader = csv.reader(cat_links_file)
-            start_urls = list(reader)[1:]
-            # start_urls = list(reader)[1:]
+            start_urls = list(reader)
 
         for url in start_urls:
             yield scrapy.Request(url=url[0],
@@ -205,13 +191,15 @@ class NorgrenProductsSpider(scrapy.Spider):
         options.add_argument("--headless=new")
         browser = webdriver.Chrome(options=options)
         browser.get(response.url)
-        browser.implicitly_wait(5)
+        # browser.implicitly_wait(5)
         try:
-            browser.find_element(By.ID, "ensAcceptAll").click()
+            WebDriverWait(browser, TIMEOUT).until(
+                EC.presence_of_element_located((By.ID, "ensAcceptAll"))
+            ).click()
         except NoSuchElementException:
             pass
         try:
-            WebDriverWait(browser, 10).until(
+            WebDriverWait(browser, TIMEOUT).until(
                 EC.presence_of_element_located((By.XPATH, "//*[contains(text(), 'Shipping')]"))
             )
         except TimeoutException as error:
@@ -222,7 +210,7 @@ class NorgrenProductsSpider(scrapy.Spider):
 
         try:
             field_name = "Заголовок"
-            title = WebDriverWait(browser, 10).until(
+            title = WebDriverWait(browser, TIMEOUT).until(
                 EC.visibility_of_element_located((By.CSS_SELECTOR, "h2.font__heavy"))
             )
             if title:
@@ -241,56 +229,75 @@ class NorgrenProductsSpider(scrapy.Spider):
         except Exception as error:
             save_error(response.url, error, field_name)
 
+        # try:
+        #     field_name = "Цена"
+        #     price = WebDriverWait(browser, 20).until(
+        #         EC.presence_of_element_located((By.CSS_SELECTOR, "h4.product-details__basket--base-price"))
+        #     )
+        #     if price.get_attribute("innerHTML") == "Please login for price":
+        #         result[field_name] = ""
+        #     else:
+        #         result[field_name] = price.get_attribute("innerHTML").strip("$")
+        # except Exception as error:
+        #     save_error(browser.current_url, error, field_name)
+
         try:
             field_name = "Дата доставки"
-            div = browser.find_element(By.CSS_SELECTOR, "div.product-details__basket--shipping")
+            div = WebDriverWait(browser, TIMEOUT).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, "div.product-details__basket--shipping"))
+            )
             shipping_date = div.find_element(By.XPATH, "//span[contains(text(), 'Shipping')]")
             if shipping_date:
                 result[field_name] = shipping_date.text.strip("Norgren Shipping Date:")
             else:
                 result[field_name] = ""
 
-        except TimeoutException as error:
+        except Exception as error:
             save_error(browser.current_url, error, field_name)
 
         try:
             field_name = "Наличие"
-            div = browser.find_element(By.CSS_SELECTOR, "div.product-details__basket--stock")
+            div = WebDriverWait(browser, TIMEOUT).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, "div.product-details__basket--stock"))
+            )
             availability = div.find_element(By.TAG_NAME, "span")
             if availability:
                 result[field_name] = availability.text
             else:
                 result[field_name] = ""
 
-        except TimeoutException as error:
+        except Exception as error:
             save_error(browser.current_url, error, field_name)
 
         try:
             field_name = "Картинки"
-            image = browser.find_element(By.CSS_SELECTOR, "div.product-details__listing img")
+            image = WebDriverWait(browser, TIMEOUT).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, "div.product-details__listing img"))
+            )
             if image:
                 result[field_name] = image.get_attribute('src')
             else:
                 result[field_name] = ""
 
-        except TimeoutException as error:
+        except Exception as error:
             save_error(browser.current_url, error, field_name)
 
         try:
             field_name = "PDF"
             pdf = response.css('#datasheet-download')
-
             if pdf:
                 result[field_name] = pdf.attrib['href']
             else:
                 result[field_name] = ""
 
-        except TimeoutException as error:
+        except Exception as error:
             save_error(browser.current_url, error, field_name)
 
         try:
             field_name = "Краткое описание"
-            short_description = browser.find_element(By.CSS_SELECTOR, ".product-details__spec--features")
+            short_description = WebDriverWait(browser, TIMEOUT).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, ".product-details__spec--features"))
+            )
             if short_description:
                 short_description = short_description.get_attribute("outerHTML")
                 result[field_name] = del_classes_from_html(short_description)
@@ -298,31 +305,35 @@ class NorgrenProductsSpider(scrapy.Spider):
             else:
                 result[field_name] = ""
 
-        except TimeoutException as error:
+        except Exception as error:
             save_error(browser.current_url, error, field_name)
 
         try:
             field_name = "Описание"
-            description = browser.find_element(By.CSS_SELECTOR, ".product-details__listing table")
+            description = WebDriverWait(browser, TIMEOUT).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, ".product-details__listing table"))
+            )
             if description:
                 description = description.get_attribute("outerHTML")
                 result[field_name] = description
             else:
                 result[field_name] = ""
 
-        except TimeoutException as error:
+        except Exception as error:
             save_error(browser.current_url, error, field_name)
 
         try:
             field_name = "Технические характеристики"
-            technical_details = browser.find_element(By.CSS_SELECTOR, ".product-details__product-data--table")
+            technical_details = WebDriverWait(browser, TIMEOUT).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, ".product-details__product-data--table"))
+            )
             if technical_details:
                 technical_details = technical_details.get_attribute("innerHTML")
                 result[field_name] = technical_details
             else:
                 result[field_name] = ""
 
-        except TimeoutException as error:
+        except Exception as error:
             save_error(browser.current_url, error, field_name)
 
         browser.close()
