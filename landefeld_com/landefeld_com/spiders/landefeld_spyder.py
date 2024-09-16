@@ -1,4 +1,5 @@
 import csv
+import re
 import time
 from pathlib import Path
 from selenium import webdriver
@@ -21,7 +22,7 @@ CURRENT_DIR = Path("__file__").resolve()
 BASE_DIR = CURRENT_DIR.parent
 RESULTS_DIR = BASE_DIR / "results"
 ERRORS_DIR = BASE_DIR / "errors"
-ERRORS_FILENAME = ERRORS_DIR / "errors.csv"
+ERRORS_FILENAME = ERRORS_DIR / "errors_only_links.csv"
 
 
 def del_classes_from_html(html: str) -> str:
@@ -67,175 +68,100 @@ def save_error(url, error, field, err_file_path=ERRORS_FILENAME):
         writer.writerow([url, field, type(error), error])
 
 
-class NorgrenProductsSpider(scrapy.Spider):
-    name = "landefeld_spyder"
-    allowed_domains = ["www.norgren.com"]
+DOMAIN = "www.landefeld.com"
+
+
+class LandefeldOnlyLinksSpider(scrapy.Spider):
+    name = "only_links_spyder"
+    allowed_domains = ["www.landefeld.com"]
 
     def start_requests(self):
-        # with open(RESULTS_DIR / "product_links.csv") as cat_links_file:
+        with open(RESULTS_DIR / "categories.csv") as cat_links_file:
+            reader = csv.reader(cat_links_file)
+            categories = list(reader)[:1]
+            # articles = cat_links_file.readlines()[:1]
+
+        # with open(RESULTS_DIR / "Product_export_20240912120700.csv") as cat_links_file:
         #     reader = csv.reader(cat_links_file)
-        #     start_urls = list(reader)
+        #     articles = list(reader)[1:2]
 
-        start_urls = ["https://www.landefeld.com/artikel/en/mp13615-zyl-bef-n/OT-IMI001945"]
+        # prefix = "https://www.landefeld.com/cgi/main.cgi?DISPLAY=suche&filter_suche_artikelmenge=&filter_suche_suchstring="
+        for url in categories:
+            url = url[0] + "?filterpath=1&page=42"
+            # url = url[0] + "?filterpath=1&page=42"
+            # url = f"{prefix}{art[2]}"
 
-        for url in start_urls:
             yield scrapy.Request(url=url,
                                  callback=self.parse,
+                                 # cb_kwargs={"art": art[2]},
                                  # meta={"playwright": True},
                                  )
 
-    def parse(self, response, **kwargs):
-        # options = webdriver.ChromeOptions()
-        # options.add_argument("--headless=new")
-        # browser = webdriver.Chrome(options=options)
-        # browser.get(response.url)
-        # # browser.implicitly_wait(5)
-        # try:
-        #     WebDriverWait(browser, 5).until(
-        #         EC.presence_of_element_located((By.ID, "ensAcceptAll"))
-        #     ).click()
-        # except NoSuchElementException:
-        #     pass
-        # try:
-        #     WebDriverWait(browser, 20).until(
-        #         EC.presence_of_element_located((By.XPATH, "//*[contains(text(), 'Shipping')]"))
-        #     )
-        # except TimeoutException as error:
-        #     save_error(response.url, error, "Try WebDriverWait Shipping in parse")
-
-        result = dict()
-        # result['url'] = browser.current_url
-
-        # try:
-        #     field_name = "Заголовок"
-        #     title = WebDriverWait(browser, 10).until(
-        #         EC.visibility_of_element_located((By.CSS_SELECTOR, "h2.font__heavy"))
-        #     )
-        #     if title:
-        #         result[field_name] = title.text
-        # except TimeoutException as error:
-        #     save_error(browser.current_url, error, field_name)
-        #
-        # try:
-        #     field_name = "Product number"
-        #     # inspect_response(response, self)
-        #     article = response.css("p.product-details__item--number::text").get()
-        #     if article:
-        #         result[field_name] = article.strip()
-        #     else:
-        #         result[field_name] = ""
-        # except Exception as error:
-        #     save_error(response.url, error, field_name)
-
-        # try:
-        #     field_name = "Цена"
-        #     price = WebDriverWait(browser, 20).until(
-        #         EC.presence_of_element_located((By.CSS_SELECTOR, "h4.product-details__basket--base-price"))
-        #     )
-        #     if price.get_attribute("innerHTML") == "Please login for price":
-        #         result[field_name] = ""
-        #     else:
-        #         result[field_name] = price.get_attribute("innerHTML").strip("$")
-        # except Exception as error:
-        #     save_error(browser.current_url, error, field_name)
-
-        # try:
-        #     field_name = "Дата доставки"
-        #     div = WebDriverWait(browser, 10).until(
-        #         EC.presence_of_element_located((By.CSS_SELECTOR, "div.product-details__basket--shipping"))
-        #     )
-        #     shipping_date = div.find_element(By.XPATH, "//span[contains(text(), 'Shipping')]")
-        #     if shipping_date:
-        #         result[field_name] = shipping_date.text.strip("Norgren Shipping Date:")
-        #     else:
-        #         result[field_name] = ""
-        #
-        # except Exception as error:
-        #     save_error(browser.current_url, error, field_name)
-        #
-        # try:
-        #     field_name = "Наличие"
-        #     div = WebDriverWait(browser, 10).until(
-        #         EC.presence_of_element_located((By.CSS_SELECTOR, "div.product-details__basket--stock"))
-        #     )
-        #     availability = div.find_element(By.TAG_NAME, "span")
-        #     if availability:
-        #         result[field_name] = availability.text
-        #     else:
-        #         result[field_name] = ""
-        #
-        # except Exception as error:
-        #     save_error(browser.current_url, error, field_name)
-        #
-        # try:
-        #     field_name = "Картинки"
-        #     image = WebDriverWait(browser, 10).until(
-        #         EC.presence_of_element_located((By.CSS_SELECTOR, "div.product-details__listing img"))
-        #     )
-        #     if image:
-        #         result[field_name] = image.get_attribute('src')
-        #     else:
-        #         result[field_name] = ""
-        #
-        # except Exception as error:
-        #     save_error(browser.current_url, error, field_name)
+    def parse(self, response):
+        options = webdriver.ChromeOptions()
+        options.add_argument("--headless=new")
+        prefs = {"profile.managed_default_content_settings.images": 2}
+        options.add_experimental_option("prefs", prefs)
+        # options.page_load_strategy = 'eager'
+        browser = webdriver.Chrome(options=options)
+        # browser.get("https://www.landefeld.com/en")
+        browser.get(response.url)
+        # browser.get(browser.current_url.replace("/de/", "/en/"))
 
         try:
-            field_name = "PDF"
-            pdf = response.css('#datasheet-download')
-            if pdf:
-                result[field_name] = pdf.attrib['href']
-            else:
-                result[field_name] = ""
+            shadow = WebDriverWait(browser, 10).until(
+                EC.presence_of_element_located(
+                    (By.CSS_SELECTOR, "div#cmpwrapper")
+                )
+            )
+            if shadow:
+                shadow_root = shadow.shadow_root
+                shadow_root.find_element(By.CSS_SELECTOR, "a.cmptxt_btn_yes").click()
+        except TimeoutException as error:
+            pass
 
-        except Exception as error:
-            save_error()
+        try:
+            WebDriverWait(browser, 10).until(
+                EC.element_to_be_clickable(
+                    (By.CSS_SELECTOR, "button.pk-button")
+                )
+            ).click()
+        except Exception:
+            pass
 
-        # try:
-        #     field_name = "Краткое описание"
-        #     short_description = WebDriverWait(browser, 10).until(
-        #         EC.presence_of_element_located((By.CSS_SELECTOR, ".product-details__spec--features"))
-        #     )
-        #     if short_description:
-        #         short_description = short_description.get_attribute("outerHTML")
-        #         result[field_name] = del_classes_from_html(short_description)
+        # shadow = browser.find_element(By.CSS_SELECTOR, "div#cmpwrapper")
+        # shadow_root = shadow.shadow_root
+        # shadow_root.find_element(By.CSS_SELECTOR, "a.cmptxt_btn_yes").click()
         #
-        #     else:
-        #         result[field_name] = ""
-        #
-        # except Exception as error:
-        #     save_error(browser.current_url, error, field_name)
-        #
-        # try:
-        #     field_name = "Описание"
-        #     description = WebDriverWait(browser, 10).until(
-        #         EC.presence_of_element_located((By.CSS_SELECTOR, ".product-details__listing table"))
-        #     )
-        #     if description:
-        #         description = description.get_attribute("outerHTML")
-        #         result[field_name] = description
-        #     else:
-        #         result[field_name] = ""
-        #
-        # except Exception as error:
-        #     save_error(browser.current_url, error, field_name)
-        #
-        # try:
-        #     field_name = "Технические характеристики"
-        #     technical_details = WebDriverWait(browser, 10).until(
-        #         EC.presence_of_element_located((By.CSS_SELECTOR, ".product-details__product-data--table"))
-        #     )
-        #     if technical_details:
-        #         technical_details = technical_details.get_attribute("innerHTML")
-        #         result[field_name] = technical_details
-        #     else:
-        #         result[field_name] = ""
-        #
-        # except Exception as error:
-        #     save_error(browser.current_url, error, field_name)
+        # browser.find_element(By.CSS_SELECTOR, "button.pk-button").click()
 
-        # browser.close()
-        yield result
+        all_links = []
+
+        result = dict()
+
+        time.sleep(1000)
+        try:
+            links = WebDriverWait(browser, 10).until(
+                EC.presence_of_all_elements_located(
+                    (By.CSS_SELECTOR, "div.artikel-info-box-container a")
+                )
+            )
+        except TimeoutException as error:
+            save_error(browser.current_url, error, "Links not load")
+
+        if links:
+            links = browser.find_elements(By.CSS_SELECTOR, "div.artikel-info-box-container a")
+            for i in range(0, len(links), 2):
+                a = links[i].get_attribute("href")
+                result["url"] = a
+
+                result["Категория"] = response.url
+                yield result
+        else:
+            result["url"] = "Не ссылок"
+
+            result["Категория"] = response.url
+            yield result
 
     async def errback(self, failure):
-        save_error(failure.request.url, failure, "ERRBACK", err_file_path=ERRORS_DIR / "errback.csv")
+        save_error(failure.request.url, failure, "ERRBACK", err_file_path=ERRORS_DIR / "errback_only_links.csv")

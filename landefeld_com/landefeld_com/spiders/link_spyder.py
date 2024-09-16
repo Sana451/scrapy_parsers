@@ -78,7 +78,7 @@ class LandefeldSpider(scrapy.Spider):
     def start_requests(self):
         with open(RESULTS_DIR / "Product_export_20240912120700.csv", encoding="utf-16") as cat_links_file:
             reader = csv.reader(cat_links_file, delimiter=";")
-            articles = list(reader)[:20]
+            articles = list(reader)
             # articles = cat_links_file.readlines()[:1]
 
         # with open(RESULTS_DIR / "Product_export_20240912120700.csv") as cat_links_file:
@@ -103,17 +103,38 @@ class LandefeldSpider(scrapy.Spider):
         browser.get(response.url)
         browser.get(browser.current_url.replace("/de/", "/en/"))
 
-        shadow = browser.find_element(By.CSS_SELECTOR, "div#cmpwrapper")
-        shadow_root = shadow.shadow_root
-        shadow_root.find_element(By.CSS_SELECTOR, "a.cmptxt_btn_yes").click()
+        try:
+            shadow = WebDriverWait(browser, 1).until(
+                EC.presence_of_element_located(
+                    (By.CSS_SELECTOR, "div#cmpwrapper")
+                )
+            )
+            if shadow:
+                shadow_root = shadow.shadow_root
+                shadow_root.find_element(By.CSS_SELECTOR, "a.cmptxt_btn_yes").click()
+        except TimeoutException:
+            pass
 
-        browser.find_element(By.CSS_SELECTOR, "button.pk-button").click()
+        try:
+            WebDriverWait(browser, 1).until(
+                EC.element_to_be_clickable(
+                    (By.CSS_SELECTOR, "button.pk-button")
+                )
+            ).click()
+        except Exception:
+            pass
+
+        # shadow = browser.find_element(By.CSS_SELECTOR, "div#cmpwrapper")
+        # shadow_root = shadow.shadow_root
+        # shadow_root.find_element(By.CSS_SELECTOR, "a.cmptxt_btn_yes").click()
+        #
+        # browser.find_element(By.CSS_SELECTOR, "button.pk-button").click()
 
         result = dict()
         result['Aртикль'] = art
 
         try:
-            h1 = WebDriverWait(browser, 10).until(
+            h1 = WebDriverWait(browser, 5).until(
                 EC.presence_of_element_located(
                     (By.XPATH, "//h1[contains(text(), '')]")
                 )
@@ -137,7 +158,7 @@ class LandefeldSpider(scrapy.Spider):
 
                 try:
                     field = "Заголовок"
-                    result[field] = h1.text
+                    result[field] = browser.find_element(By.XPATH, "//h1[contains(text(), '')]").text
                 except Exception as error:
                     save_error(browser.current_url, error, field)
 
@@ -172,8 +193,12 @@ class LandefeldSpider(scrapy.Spider):
                 try:
                     field = "Наличие"
                     result[field] = browser.find_elements(
+                        By.CSS_SELECTOR, "div.lieferinfo-abstand span"
+                    )[0].get_attribute("outerHTML"
+                                       ).strip("<span>").strip("/<span>")
+                    # result[field] = browser.find_elements(
+                    #     By.CSS_SELECTOR, "div.lieferinfo-abstand span").text
                         # By.CSS_SELECTOR, "div.lieferinfo span")[0].text
-                        By.CSS_SELECTOR, "div.lieferinfo-abstand span").text
                 except Exception as error:
                     save_error(browser.current_url, error, field)
 
@@ -198,7 +223,7 @@ class LandefeldSpider(scrapy.Spider):
                     details = browser.find_element(
                         By.CSS_SELECTOR, "table.artikelauspraegung").get_attribute(
                         "outerHTML")
-                    result["field"] = del_classes_from_html(details)
+                    result[field] = del_classes_from_html(details)
                 except Exception as error:
                     save_error(browser.current_url, error, field)
 
