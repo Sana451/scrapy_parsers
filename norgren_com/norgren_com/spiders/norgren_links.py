@@ -176,9 +176,9 @@ class NorgrenProductsSpider(scrapy.Spider):
     allowed_domains = ["www.norgren.com"]
 
     def start_requests(self):
-        with open(RESULTS_DIR / "product_links_v2.csv") as cat_links_file:
+        with open(RESULTS_DIR / "product_links_v5.csv") as cat_links_file:
             reader = csv.reader(cat_links_file)
-            start_urls = list(reader)
+            start_urls = list(reader)[1:]
 
         for url in start_urls:
             yield scrapy.Request(url=url[0],
