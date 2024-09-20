@@ -1,10 +1,18 @@
 import csv
+import decimal
 import re
+import time
 from pathlib import Path
 
+import pyautogui
 from bs4 import BeautifulSoup
 
 import scrapy
+# from selenium import webdriver
+from seleniumwire import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from tabulate import tabulate
 
 DOMAIN = "https://www.bihl-wiedemann.de"
@@ -72,24 +80,128 @@ def save_error(url, error, field, err_file_path=ERRORS_FILENAME):
         writer.writerow([url, field, type(error), error])
 
 
+PROXY_USERNAME = "vk0dUcb"
+PROXY_PASSWORD = "Us5jxS8o88"
+from threading import Thread
+
+
+def enter_proxy_auth(proxy_username, proxy_password):
+    time.sleep(10)
+    pyautogui.typewrite(proxy_username)
+    time.sleep(5)
+    pyautogui.press('tab')
+    time.sleep(5)
+    pyautogui.typewrite(proxy_password)
+    time.sleep(5)
+    pyautogui.press('enter')
+
+
+def open_a_page(driver, url):
+    driver.get(url)
+
+
 class BihlWiedemannSpyder(scrapy.Spider):
     name = "bihl_wiedemann_spyder"
     allowed_domains = ["www.bihl-wiedemann.de"]
 
+    # custom_settings = {
+    #     "DEFAULT_REQUEST_HEADERS": {
+    #         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    #         "Accept-Language": "en",
+    #         "User-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+    #     },
+    #     "COOKIES_DEBUG": True
+    # }
+
     def start_requests(self):
-        with open(RESULTS_DIR / "links.csv") as cat_links_file:
+        with open(RESULTS_DIR / "links_us.csv") as cat_links_file:
             reader = csv.reader(cat_links_file)
-            start_urls = list(reader)[:5]
+            start_urls = list(reader)
+
+        # cookie_string = "cookie_consent=%7B%22consent%22:true,%22options%22:%5B%22vimeo%22,%22youtube%22,%22ganalytics%22,%22gads%22,%22bwt%22,%22wpga4%22,%22hotjar%22%5D,%22version%22:3%7D; _hjSessionUser_3884933=eyJpZCI6IjJkMGU2YjAyLWJhZmQtNTYwNi1iOGJjLTMzMGZlMDlkMzZjMyIsImNyZWF0ZWQiOjE3MjMxOTcyMTIxMTgsImV4aXN0aW5nIjp0cnVlfQ==; wp_ga4_customerGroup=NOT%20LOGGED%20IN; __utmz=193900990.1723202223.2.2.utmcsr=shop.bihl-wiedemann.de|utmccn=(referral)|utmcmd=referral|utmcct=/; fe_typo_user=8dd2ff652f506e6bb9baa9571b209fc2.c74f85f2256437b610fcba2cd4d47e572ee82613d8130b8b76a6c1b1e5dbd4cc; PHPSESSID=3qimvjr96b241oirsnrb2fo7ha; gwMagentoLoginState=; __utma=193900990.1765942858.1723197212.1723202223.1726496618.3; __utmc=193900990; __utmt=1; gw-ajax-requested=1; gwresourcelist=-; _gid=GA1.2.1777378800.1726496626; form_key=txr57b8ygLXb2kMi; gw-geo-country=eu%2C-%2C-%2C-%2C0%231726496639%23AdvOyLd7E3YY7nAlQMALIe6XAe9D7iA8B%2BGjrsSQk4%2Fns8lsoJ9Nr5Svlx7Mkl%2FCrJAcAVg7fuWTSXROebDujwsgZ1s5S79oYL%2BNVTP3BI6u8BpD%2F3RLhqFR365o%2FIgJwD0pcSnxEJfB7UypfgWB4CZQEdWASAKQxAh5ndY9IHe%2F6KvuogNKB%2FNXb3xtjtos6%2BgU3sY%2B4vACkbCbqTk1MQ80ZaRumKwJXArtZPsB9zS6MSw9sEkVVKq28WvHaxzKnQNquaYGVN908qpLOpKxMZVlCUCkdbAO2dhTROuTHVQmWm2aDAJqSGQgt7VlB3cJ4kpvW76jyOVSJnpZ8AVbaQ%3D%3D; gw-legal-space=eu; __utmb=193900990.2.10.1726496618; _ga_MQMNHHL8SY=GS1.1.1726496617.4.1.1726496639.38.0.0; _ga=GA1.2.81638953.1723197212; gwMagentoCartSummaryCount=0"
+        # from http.cookies import SimpleCookie
+        # cookie = SimpleCookie()
+        # cookie.load(cookie_string)
+        # my_cookies = {k: v.value for k, v in cookie.items()}
 
         for url in start_urls:
             yield scrapy.Request(url=url[0],
                                  callback=self.parse,
-                                 errback=self.errback
+                                 errback=self.errback,
+                                 # cookies=my_cookies,
+                                 # meta={"playwright": True,
+                                 #       "proxy": "socks5://178.62.79.49:16614"},
                                  )
 
     def parse(self, response, **kwargs):
+        options = webdriver.ChromeOptions()
+        options.add_argument("--headless=new")
+        seleniumwire_options = {
+            'proxy': {
+                'http': 'http://vk0dUcb:Us5jxS8o88@23.27.3.254:59100',
+                'https': 'https://vk0dUcb:Us5jxS8o88@23.27.3.254:59100',
+                'no_proxy': 'localhost,127.0.0.1'
+            }
+        }
+        browser = webdriver.Chrome(seleniumwire_options=seleniumwire_options,
+                                   options=options)
+        browser.get(response.url)
+        # PROXY = "vk0dUcb:Us5jxS8o88@23.27.3.254:59100"
+        # PROXY = "23.27.3.254:59100"
+        # options.add_argument(f"--proxy-server={PROXY}")
+        # browser = webdriver.Chrome(options=options)
+        # Thread(target=open_a_page, args=(browser, response.url)).start()
+        # open_a_page(browser, response.url)
+        # time.sleep(5)
+        # enter_proxy_auth(PROXY_USERNAME, PROXY_PASSWORD)
+        # time.sleep(5)
+        # Thread(target=enter_proxy_auth, args=(PROXY_USERNAME, PROXY_PASSWORD)).start()
+        # browser.get(response.url)
+
+        try:
+            WebDriverWait(browser, 10).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, "button.select-all"))
+            ).click()
+        except TimeoutError:
+            pass
+
+        try:
+            WebDriverWait(browser, 10).until(
+                EC.frame_to_be_available_and_switch_to_it((By.CSS_SELECTOR, "iframe#iFrameResizer0"))
+            )
+
+        except Exception:
+            pass
+
         result = dict()
         result["url"] = response.url
+
+        try:
+            field = "Цена (USD)"
+            price_usd = browser.find_element(
+                By.CSS_SELECTOR, "span.price"
+            ).text.replace("USD", ""
+                           ).replace(",", "")
+            result[field] = price_usd
+        except Exception as error:
+            result[field] = ""
+            save_error(response.url, error, field)
+
+        try:
+            field = "Цена (€)"
+            result[field] = round(number=decimal.Decimal(float(price_usd) / 1.23), ndigits=2)
+        except Exception as error:
+            result[field] = ""
+            save_error(response.url, error, field)
+
+        try:
+            field = "Наличие"
+            result[field] = browser.find_element(By.CSS_SELECTOR, "span.c-stock-info__label a").text
+        except Exception as error:
+            result[field] = ""
+            save_error(response.url, error, field)
+
+        browser.switch_to.default_content()  # переключиться с iframe на исходную страницу
 
         try:
             field = "Заголовок"
@@ -178,6 +290,7 @@ class BihlWiedemannSpyder(scrapy.Spider):
         except Exception as error:
             save_error(response.url, error, field)
 
+        browser.quit()
         yield result
 
     async def errback(self, failure):
