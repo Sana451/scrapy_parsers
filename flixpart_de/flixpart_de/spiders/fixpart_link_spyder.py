@@ -1,20 +1,26 @@
 import csv
 import re
+import sys
 import time
 from pathlib import Path
 
-from selenium.common import NoSuchElementException, TimeoutException
+import scrapy_splash
+from scrapy import Request
+from scrapy_splash import SplashRequest
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.wait import WebDriverWait
+
+sys.path.insert(0, "/home/sana451/PycharmProjects/scrapy_parsers")
+
+from tools import my_scraping_tools as my_tools
 from bs4 import BeautifulSoup
 
 import scrapy
-from scrapy.shell import inspect_response
-from selenium import webdriver
-from tabulate import tabulate
+from seleniumwire import webdriver
+from selenium.webdriver.support import expected_conditions as EC
 
-DOMAIN = "https://www.camlogic.it"
+
+# DOMAIN = "https://www.camlogic.it"
 
 BASE_DIR = Path("__file__").resolve().parent
 
@@ -23,263 +29,68 @@ ERRORS_DIR = BASE_DIR / "errors"
 ERRORS_FILENAME = ERRORS_DIR / "errors.csv"
 
 
-def del_classes_AND_divs_from_html(html: str) -> str:
-    soup = BeautifulSoup(html, "html.parser")
-    [d.decompose() for d in soup.find_all("div")]
-
-    for tag in soup():
-        for attribute in ["class", "style", "id", "scope", "data-th",
-                          "target", "itemprop", "content", "data-description", "data-uid",
-                          "data-name"]:
-            del tag[attribute]
-
-    result = re.sub(r'<!.*?->', '', str(soup))  # удалить комментарии
-    return result
+# from http.cookies import SimpleCookie
+#
+# raw_cookies = """_gcl_au=1.1.1890166969.1726730539; all_ppc=true; ph_phc_iL74ayq5SuNJ2vq0tOu7ohb3Ybllchc1crKCtF9AWQ4_posthog=%7B%22distinct_id%22%3A%22cus_01HPK3C2QVVXSX9N46MZ7VGYSH%22%2C%22%24sesid%22%3A%5B1726732797188%2C%2201920929-13af-7211-94cc-fdd551ff4a36%22%2C1726730539951%5D%2C%22%24epp%22%3Atrue%7D; _dd_s=logs=1&id=a99c2ca0-82b3-49cc-86b8-6452bec61b3e&created=1726730545831&expire=1726734101167"""
+# cookie = SimpleCookie()
+# cookie.load(raw_cookies)
+# cookies = {k: v.value for k, v in cookie.items()}
 
 
-def del_classes_from_html(html: str) -> str:
-    soup = BeautifulSoup(html, "html.parser")
-
-    for tag in soup():
-        for attribute in ["class", "style", "id", "scope", "data-th",
-                          "target", "itemprop", "content", "data-description", "data-uid",
-                          "data-name", "href", "title"]:
-            del tag[attribute]
-
-    result = re.sub(r'<!.*?->', '', str(soup))  # удалить комментарии
-    return result
-
-
-def remove_tags(html):
-    soup = BeautifulSoup(html, "html.parser")
-    for data in soup(["class", "style", "id", "scope", "data-th", "target"]):
-        data.decompose()
-
-    return ' '.join(soup.stripped_strings)
-
-
-def create_html_table(html: str) -> str:
-    soup = BeautifulSoup(html, "html.parser")
-
-    res = []
-    divs = soup.find_all("div")
-    for div in divs:
-        span_list = div.find_all("span")
-        if len(span_list) == 2:
-            res.append(i.text.strip() for i in span_list)
-
-    html = tabulate(res, tablefmt="html").replace("\n", "")
-
-    return html
-
-
-def save_error(url, error, field, err_file_path=ERRORS_FILENAME):
-    with open(err_file_path, "a") as error_csvfile:
-        writer = csv.writer(error_csvfile)
-        writer.writerow([url, field, type(error), error])
-
-
-from http.cookies import SimpleCookie
-
-raw_cookies = """_gcl_au=1.1.1890166969.1726730539; all_ppc=true; ph_phc_iL74ayq5SuNJ2vq0tOu7ohb3Ybllchc1crKCtF9AWQ4_posthog=%7B%22distinct_id%22%3A%22cus_01HPK3C2QVVXSX9N46MZ7VGYSH%22%2C%22%24sesid%22%3A%5B1726732797188%2C%2201920929-13af-7211-94cc-fdd551ff4a36%22%2C1726730539951%5D%2C%22%24epp%22%3Atrue%7D; _dd_s=logs=1&id=a99c2ca0-82b3-49cc-86b8-6452bec61b3e&created=1726730545831&expire=1726734101167"""
-cookie = SimpleCookie()
-cookie.load(raw_cookies)
-cookies = {k: v.value for k, v in cookie.items()}
-
-
-class FixpartSpyder(scrapy.Spider):
-    name = "fixpart_spyder"
+class FixpartLinkSpyder(scrapy.Spider):
+    name = "fixpart_link_spyder"
     allowed_domains = ["flixpart.de"]
-    custom_settings = {
-        "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT": 1000000,  # milliseconds
-        "PLAYWRIGHT_LAUNCH_OPTIONS": {
-            "timeout": 20 * 1000,  # 20 seconds
-        },
-        "PLAYWRIGHT_CONNECT_KWARGS": {
-            "slow_mo": 1000,
-            "timeout": 10 * 1000
-        },
-        "DUPEFILTER_DEBUG": True,
-        "USER_AGENT": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.95 Safari/537.36",
-    }
-    start_urls = []
-
-    # options = webdriver.ChromeOptions()
-    # # options.add_argument("--headless=new")
-    # # PROXY = "vk0dUcb:Us5jxS8o88@23.27.3.254:59100"
-    # # options.add_argument(f"--proxy-server={PROXY}")
-    # browser = webdriver.Chrome(options=options)
-    # # browser.implicitly_wait(20)
-    # browser.get("https://www.camlogic.it/en/login?redir=%2Fen%2Fuser")
 
     def start_requests(self):
-        with open(RESULTS_DIR / "flixpart.de_links.txt") as links_file:
-            reader = csv.reader(links_file)
-            start_urls = list(reader)[:1]
+        with open("/home/sana451/PycharmProjects/scrapy_parsers/flixpart_de/flixpart_de/results/stauff.atricles.csv",
+                  "r") as csv_file:
+            reader = csv.reader(csv_file)
+            articles = [column[1] for column in list(reader)]
+            prefix = "https://www.flixpart.de/q?query="
+            start_urls = [prefix + article for article in articles]
 
         for url in start_urls:
-            yield scrapy.Request(url=url[0],
-                                 callback=self.parse,
-                                 errback=self.errback,
-                                 cookies=cookies,
-                                 meta={
-                                     "playwright": True,
-                                     # "proxy": "http://168.228.47.129:9197:PHchyV:qvzX3m",
-                                     "proxy": "vk0dUcb:Us5jxS8o88@23.27.3.254:59100",
-                                     # "proxy": "168.228.47.129:9197",
-                                 },
+            yield scrapy.Request(url,
+                                 # meta={"playwright": True, }
                                  )
 
     def parse(self, response):
-        # options = webdriver.ChromeOptions()
-        # # options.add_argument("--headless=new")
-        # # PROXY = "vk0dUcb:Us5jxS8o88@23.27.3.254:59100"
-        # # options.add_argument(f"--proxy-server={PROXY}")
-        # browser = webdriver.Chrome(options=options)
-        # # browser.implicitly_wait(20)
-        # browser.get("https://www.camlogic.it/en/login?redir=%2Fen%2Fuser")
+        options = webdriver.ChromeOptions()
+        # options.add_argument("--headless=new")
+        seleniumwire_options = {
+            'proxy': {
+                'http': 'http://vk0dUcb:Us5jxS8o88@23.27.3.254:59100',
+                'https': 'https://vk0dUcb:Us5jxS8o88@23.27.3.254:59100',
+                'no_proxy': 'localhost,127.0.0.1'
+            }
+        }
+        browser = webdriver.Chrome(seleniumwire_options=seleniumwire_options, options=options)
+        browser.get(response.url)
 
-        # try:
-        #     WebDriverWait(browser, 5).until(
-        #         EC.presence_of_all_elements_located((By.ID, "CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll"))
-        #     )
-        #     accept_cookie_btn = browser.find_element(By.ID, "CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll")
-        #     accept_cookie_btn.click()
-        # except Exception:
-        #     pass
-        #
-        # try:
-        #     WebDriverWait(browser, 10).until(
-        #         EC.presence_of_all_elements_located((By.ID, "customerSignInForm"))
-        #     )
-        #     form = browser.find_element(By.ID, "customerSignInForm")
-        #     form.find_element(By.CSS_SELECTOR, "input[type=email]").send_keys("osl@famaga.de")
-        #     form.find_element(By.CSS_SELECTOR, "input[type=password]").send_keys("FamagaKitov777!")
-        #     form.find_element(By.ID, "front-remember-me-cb").click()
-        #     browser.find_element(By.CSS_SELECTOR, "button.loginSubmitBtn").click()
-        # except Exception:
-        #     pass
-        #
-        # WebDriverWait(browser, 10).until(
-        #     EC.presence_of_element_located((By.CSS_SELECTOR, "div.card-header"))
-        # )
-        #
-        # time.sleep(2)
-        # browser.get(response.url)
-        #
-        # WebDriverWait(browser, 10).until(
-        #     EC.presence_of_element_located((By.CSS_SELECTOR, "h1.prod-code"))
-        # )
+        try:
+            # WebDriverWait(browser, 10).until(
+            #     EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Akzeptieren')]"))
+            # ).click()
+            browser.find_element(By.XPATH, "//button[contains(text(), 'Akzeptieren')]").click()
+        except Exception:
+            pass
 
+        WebDriverWait(browser, 10).until(
+            EC.element_to_be_clickable(
+                (
+                    By.CSS_SELECTOR,
+                    "p div.grid a",
+                )
+            )
+        )
         result = dict()
-        result["url"] = response.url
-
-        # try:
-        #     field = "Заголовок"
-        #     result[field] = browser.find_element(By.CSS_SELECTOR, "h1.prod-code").text
-        # except Exception as error:
-        #     result[field] = ""
-        #     save_error(response.url, error, field)
-        #
-        # try:
-        #     field = "Commercial code"
-        #     WebDriverWait(browser, 10).until(
-        #         EC.presence_of_element_located((By.CSS_SELECTOR, ".sellCode"))
-        #     )
-        #     result[field] = browser.find_element(By.CSS_SELECTOR, ".sellCode").text
-        # except Exception as error:
-        #     result[field] = ""
-        #     save_error(response.url, error, field)
-        #
-        # try:
-        #     field = "Configuration code"
-        #     result[field] = browser.find_element(By.CSS_SELECTOR, ".configurationCode").text
-        # except Exception as error:
-        #     result[field] = ""
-        #     save_error(response.url, error, field)
-        #
-        # try:
-        #     field = "Цена"
-        #     result[field] = browser.find_element(By.CSS_SELECTOR, "div.card-body span.full_price"
-        #                                          ).text.replace("€", "")
-        # except Exception as error:
-        #     result[field] = ""
-        #     save_error(response.url, error, field)
-        #
-        # try:
-        #     field = "Цена со скидкой"
-        #     result[field] = browser.find_element(By.CSS_SELECTOR, "div.card-body span.discounted_price"
-        #                                          ).text.replace("€", "")
-        # except Exception as error:
-        #     result[field] = ""
-        #     save_error(response.url, error, field)
-        #
-        # try:
-        #     field = "Скидка"
-        #     result[field] = browser.find_element(By.CSS_SELECTOR, "#productDetailConfigurator span.discount_label"
-        #                                          ).text.replace("Discount", "")
-        # except Exception as error:
-        #     result[field] = ""
-        #     save_error(response.url, error, field)
-        #
-        # try:
-        #     field = "Картинки"
-        #     images = browser.find_elements(By.CSS_SELECTOR, "img.img-web-ext")
-        #     images_src = [img.get_attribute("src") for img in images if "placeholder" not in img.get_attribute("src")]
-        #     result[field] = " | ".join(images_src)
-        # except Exception as error:
-        #     result[field] = ""
-        #     save_error(response.url, error, field)
-        #
-        # try:
-        #     field = "PDF"
-        #     div = browser.find_element(By.CSS_SELECTOR, "div#collapse_tech")
-        #     pdf = div.find_element(By.XPATH, "//a[contains(text(), 'Technical datasheet')]")
-        #     result[field] = pdf.get_attribute("href")
-        # except Exception as error:
-        #     result[field] = ""
-        #     save_error(response.url, error, field)
-        #
-        # try:
-        #     field = "Описание"
-        #     description = browser.find_element(By.CSS_SELECTOR, "div.prod-desc p").text
-        #     result[field] = description
-        # except Exception as error:
-        #     result[field] = ""
-        #     save_error(response.url, error, field)
-        #
-        # try:
-        #     field = "Technical Specifications"
-        #     details = browser.find_element(
-        #         By.CSS_SELECTOR, "div.productDetailAdvantages div.info-wrapper ul").get_attribute("outerHTML")
-        #
-        #     result[field] = details
-        # except Exception as error:
-        #     result[field] = ""
-        #     save_error(response.url, error, field)
-        #
-        # try:
-        #     field = "Specifications"
-        #     specs = browser.find_elements(By.CSS_SELECTOR, "div.prod-desc ul")
-        #     all_specs = [spec.get_attribute("outerHTML") for spec in specs]
-        #     result[field] = "\n".join(all_specs)
-        # except Exception as error:
-        #     result[field] = ""
-        #     save_error(response.url, error, field)
-        #
-        # try:
-        #     field = "Категории"
-        #     product_line = browser.find_element(By.XPATH, "//p[contains(text(), 'Product line')]")
-        #     category = product_line.find_element(By.TAG_NAME, "a").text
-        #     result[field] = category
-        # except Exception as error:
-        #     result[field] = ""
-        #     save_error(response.url, error, field)
-        #
-        # browser.quit()
+        links = browser.find_elements(By.CSS_SELECTOR, "p div.grid a")
+        hrefs = [a.get_attribute("href") for a in links]
+        browser.quit()
+        result["url"] = "\n".join(hrefs)
         yield result
 
     async def errback(self, failure):
-        save_error(failure.request.url, failure, "ERRBACK", err_file_path=ERRORS_DIR / "errback.csv")
+        my_tools.save_error(failure.request.url, failure, "ERRBACK", err_file_path=ERRORS_DIR / "errback.csv")
 
 # from bihl_wiedemann_de.spiders.bihl_wiedemann_spyder import *

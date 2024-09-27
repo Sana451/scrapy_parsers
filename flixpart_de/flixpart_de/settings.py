@@ -16,7 +16,7 @@ NEWSPIDER_MODULE = "flixpart_de.spiders"
 # USER_AGENT = "flixpart_de (+http://www.yourdomain.com)"
 
 # Obey robots.txt rules
-ROBOTSTXT_OBEY = True
+ROBOTSTXT_OBEY = False
 
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
 # CONCURRENT_REQUESTS = 32
@@ -96,13 +96,25 @@ DOWNLOADER_MIDDLEWARES = {
     'rotating_proxies.middlewares.BanDetectionMiddleware': 620,
 }
 
-## settings.py
-
 ROTATING_PROXY_LIST_PATH = 'proxy.txt'
+
+#
+# SPLASH_URL = 'http://192.168.59.103:8050'
+#
+# DOWNLOADER_MIDDLEWARES = {
+#     'scrapy_splash.SplashCookiesMiddleware': 723,
+#     'scrapy_splash.SplashMiddleware': 725,
+#     'scrapy.downloadermiddlewares.httpcompression.HttpCompressionMiddleware': 810,
+# }
+#
+# SPIDER_MIDDLEWARES = {
+#     'scrapy_splash.SplashDeduplicateArgsMiddleware': 100,
+# }
+#
+# DUPEFILTER_CLASS = 'scrapy_splash.SplashAwareDupeFilter'
+
 
 # DOWNLOAD_HANDLERS = {
 #     "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
 #     "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
 # }
-#
-# TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"

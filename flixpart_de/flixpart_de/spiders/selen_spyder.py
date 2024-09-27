@@ -21,6 +21,12 @@ RESULTS_DIR = BASE_DIR / "results"
 ERRORS_DIR = BASE_DIR / "errors"
 ERRORS_FILENAME = ERRORS_DIR / "errors.csv"
 
+FIELDNAMES = ['url', 'Заголовок', 'Производитель', 'Название товара производителя',
+              'Артикул производителя', 'Код типа производителя', 'Описание', 'Цена',
+              'Цена со скидкой', 'Скидка', 'Доставка в теч.раб.дней', 'Доставка',
+              'Срок доставки', 'Вес', 'Картинки', 'Доп.информация', 'Характеристики',
+              'Категории']
+
 
 def del_classes_AND_divs_from_html(html: str) -> str:
     soup = BeautifulSoup(html, "html.parser")
@@ -282,10 +288,12 @@ def scrapy_page(browser, url):
 
         return result
 
-
     except Exception as error:
-        print("browser get")
+        print("browser get error")
         save_error(url, error, "browser get", RESULTS_DIR / "errback.csv")
+        epmty_result = {name: "" for name in FIELDNAMES}
+        epmty_result["url"] = url
+        return epmty_result
 
 
 # PROXY = "vk0dUcb:Us5jxS8o88@23.27.3.254:59100"
@@ -293,7 +301,7 @@ def scrapy_page(browser, url):
 
 if __name__ == '__main__':
     options = webdriver.ChromeOptions()
-    options.add_argument("--headless=new")
+    # options.add_argument("--headless=new")
     seleniumwire_options = {
         'proxy': {
             'http': 'http://vk0dUcb:Us5jxS8o88@23.27.3.254:59100',
@@ -325,24 +333,16 @@ if __name__ == '__main__':
     except Exception as error:
         save_error(browser.current_url, error, "Login error")
 
-    with open(RESULTS_DIR / "flixpart.de_links.csv") as cat_links_file:
+    with open(RESULTS_DIR / "links87.stauff.flixpart.de.csv") as cat_links_file:
         reader = csv.reader(cat_links_file)
-        start_urls = list(reader)[1680:]
+        start_urls = list(reader)
 
-    with open(RESULTS_DIR / "res.csv", "a") as sel_res_file:
+    with open(RESULTS_DIR / "stauff.flixpart.de.v3.csv", "a", newline="", encoding="utf-8") as sel_res_file:
         writer = csv.DictWriter(sel_res_file,
-                                fieldnames=[
-                                    'url', 'Заголовок', 'Производитель', 'Название товара производителя',
-                                    'Артикул производителя', 'Код типа производителя', 'Описание', 'Цена',
-                                    'Цена со скидкой', 'Скидка', 'Доставка в теч.раб.дней', 'Доставка',
-                                    'Срок доставки', 'Вес', 'Картинки', 'Доп.информация', 'Характеристики',
-                                    'Категории'])
-        # writer.writeheader()
+                                fieldnames=FIELDNAMES)
+        writer.writeheader()
 
         for url in start_urls:
-            new = url[0].split("://")
-            new.insert(1, "://www.")
-            url = "".join(new)
-            print(url)
-            res = scrapy_page(browser, url)
+            print(url[0])
+            res = scrapy_page(browser, url[0])
             writer.writerow(res)

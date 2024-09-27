@@ -300,8 +300,8 @@ def scrapy_page(browser, url):
 
 
 if __name__ == '__main__':
-    options = webdriver.ChromeOptions()
-    options.add_argument("--headless=new")
+    options = webdriver.EdgeOptions()
+    # options.add_argument("--headless=new")
     seleniumwire_options = {
         'proxy': {
             'http': 'http://vk0dUcb:Us5jxS8o88@23.27.3.254:59100',
@@ -310,7 +310,7 @@ if __name__ == '__main__':
         }
     }
 
-    browser = webdriver.Chrome(seleniumwire_options=seleniumwire_options, options=options)
+    browser = webdriver.Edge(seleniumwire_options=seleniumwire_options, options=options)
     browser.implicitly_wait(7)
     browser.get("https://www.flixpart.de/account/login")
 
@@ -333,19 +333,16 @@ if __name__ == '__main__':
     except Exception as error:
         save_error(browser.current_url, error, "Login error")
 
-    with open(RESULTS_DIR / "flixpart.de_links.csv") as cat_links_file:
+    with open(RESULTS_DIR / "links.by_articles.stauff.flixpart.de.v2.csv") as cat_links_file:
         reader = csv.reader(cat_links_file)
-        start_urls = list(reader)[5936:]
+        start_urls = list(reader)[1500:]
 
-    with open(RESULTS_DIR / "res.csv", "a") as sel_res_file:
+    with open(RESULTS_DIR / "stauff.flixpart.edge.de.csv", "a", newline="", encoding="utf-8") as sel_res_file:
         writer = csv.DictWriter(sel_res_file,
                                 fieldnames=FIELDNAMES)
         # writer.writeheader()
 
         for url in start_urls:
-            new = url[0].split("://")
-            new.insert(1, "://www.")
-            url = "".join(new)
-            print(url)
-            res = scrapy_page(browser, url)
+            print(url[0])
+            res = scrapy_page(browser, url[0])
             writer.writerow(res)
