@@ -75,14 +75,13 @@ def create_html_table(html: str) -> str:
 
 
 def save_error(url, error, field, err_file_path=ERRORS_FILENAME):
-    with open(err_file_path, "a") as error_csvfile:
+    with open(err_file_path, "a", newline="", encoding="utf-8") as error_csvfile:
         writer = csv.writer(error_csvfile)
         writer.writerow([url, field, type(error), error])
 
 
 PROXY_USERNAME = "vk0dUcb"
 PROXY_PASSWORD = "Us5jxS8o88"
-from threading import Thread
 
 
 def enter_proxy_auth(proxy_username, proxy_password):
@@ -104,17 +103,8 @@ class BihlWiedemannSpyder(scrapy.Spider):
     name = "bihl_wiedemann_spyder"
     allowed_domains = ["www.bihl-wiedemann.de"]
 
-    # custom_settings = {
-    #     "DEFAULT_REQUEST_HEADERS": {
-    #         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    #         "Accept-Language": "en",
-    #         "User-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
-    #     },
-    #     "COOKIES_DEBUG": True
-    # }
-
     def start_requests(self):
-        with open(RESULTS_DIR / "links_us.csv") as cat_links_file:
+        with open(RESULTS_DIR / "links_de.csv") as cat_links_file:
             reader = csv.reader(cat_links_file)
             start_urls = list(reader)
 
@@ -146,17 +136,6 @@ class BihlWiedemannSpyder(scrapy.Spider):
         browser = webdriver.Chrome(seleniumwire_options=seleniumwire_options,
                                    options=options)
         browser.get(response.url)
-        # PROXY = "vk0dUcb:Us5jxS8o88@23.27.3.254:59100"
-        # PROXY = "23.27.3.254:59100"
-        # options.add_argument(f"--proxy-server={PROXY}")
-        # browser = webdriver.Chrome(options=options)
-        # Thread(target=open_a_page, args=(browser, response.url)).start()
-        # open_a_page(browser, response.url)
-        # time.sleep(5)
-        # enter_proxy_auth(PROXY_USERNAME, PROXY_PASSWORD)
-        # time.sleep(5)
-        # Thread(target=enter_proxy_auth, args=(PROXY_USERNAME, PROXY_PASSWORD)).start()
-        # browser.get(response.url)
 
         try:
             WebDriverWait(browser, 10).until(
@@ -177,22 +156,22 @@ class BihlWiedemannSpyder(scrapy.Spider):
         result["url"] = response.url
 
         try:
-            field = "Цена (USD)"
+            field = "Цена"
             price_usd = browser.find_element(
                 By.CSS_SELECTOR, "span.price"
-            ).text.replace("USD", ""
+            ).text.replace("€", ""
                            ).replace(",", "")
             result[field] = price_usd
         except Exception as error:
             result[field] = ""
             save_error(response.url, error, field)
 
-        try:
-            field = "Цена (€)"
-            result[field] = round(number=decimal.Decimal(float(price_usd) / 1.23), ndigits=2)
-        except Exception as error:
-            result[field] = ""
-            save_error(response.url, error, field)
+        # try:
+        #     field = "Цена (€)"
+        #     result[field] = round(number=decimal.Decimal(float(price_usd) / 1.23), ndigits=2)
+        # except Exception as error:
+        #     result[field] = ""
+        #     save_error(response.url, error, field)
 
         try:
             field = "Наличие"
