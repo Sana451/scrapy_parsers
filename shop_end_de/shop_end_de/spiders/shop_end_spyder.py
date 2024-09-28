@@ -1,21 +1,13 @@
 import csv
-import json
 import sys
 
 from pathlib import Path
-
 import scrapy
-
-import requests
-import scrapy_splash
-from scrapy_splash import SplashRequest
-from tabulate import tabulate
-from bs4 import BeautifulSoup
 
 if sys.platform == "linux":
     sys.path.insert(0, "/home/sana451/PycharmProjects/scrapy_parsers")
 elif sys.platform == "win32":
-    sys.path.insert(r"D:\sana451\scrapy_parsers")
+    sys.path.insert(0, r"D:\sana451\scrapy_parsers")
 from tools import my_scraping_tools as my_tools
 
 BASE_DIR = Path("__file__").resolve().parent
@@ -34,30 +26,14 @@ class ShopEndSpyderSpider(scrapy.Spider):
             reader = csv.reader(shop_end_links_file)
             start_urls = list(reader)
             for url in start_urls[:]:
-                # yield scrapy.Request(
-                #     url=url[0],
-                #     callback=self.parse
-                # )
-
                 yield scrapy.Request(
                     url=url[0],
                     callback=self.parse,
                     meta={"playwright": True}
                 )
-                # yield SplashRequest(url=url[0],
-                #                     callback=self.parse,
-                #                     args={
-                #                         'wait': 20.5,
-                #                     },
-                #                     endpoint='render.json',  # optional; default is render.html
-                #                     splash_url='<url>',  # optional; overrides SPLASH_URL
-                #                     slot_policy=scrapy_splash.SlotPolicy.PER_DOMAIN,  # optional
-                #                     )
 
     def parse(self, response):
-        f = open("2.html", "w")
-        f.write(response.xpath("//html").get())
-        f.close()
+
         result = {"url": response.url}
 
         try:
