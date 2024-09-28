@@ -24,9 +24,9 @@ class RiederSpiderSpider(scrapy.Spider):
     allowed_domains = ["riegler.de"]
 
     def start_requests(self):
-        with open(RESULTS_DIR / "rieder_links.csv", "r") as links_file:
+        with open(RESULTS_DIR / "riegler_links2.csv", "r") as links_file:
             reader = csv.reader(links_file)
-            start_urls = list(reader)[21678:]
+            start_urls = list(reader)
 
         for url in start_urls:
             yield scrapy.Request(url=url[0],

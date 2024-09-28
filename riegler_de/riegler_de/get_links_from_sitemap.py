@@ -11,7 +11,7 @@ sitemap_urls_de = ["https://www.riegler.de/de/de/media/sitemap/sitemap_de-2-1.xm
                    "https://www.riegler.de/de/de/media/sitemap/sitemap_de-2-2.xml",
                    "https://www.riegler.de/de/de/media/sitemap/sitemap_de-2-3.xml"]
 
-with open("/home/sana451/PycharmProjects/scrapy_parsers/riegler_de/riegler_de/results/rieder_links.csv",
+with open("/riegler_de/riegler_de/results/riegler_links.csv",
           "a") as link_file:
     for map in sitemap_urls_de:
         soup = BeautifulSoup(requests.get(map).content, "xml")
