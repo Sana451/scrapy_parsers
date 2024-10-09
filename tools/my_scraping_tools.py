@@ -41,7 +41,7 @@ def del_classes_from_html(html) -> str:
     for tag in soup():
         for attribute in ["class", "style", "id", "scope", "data-th",
                           "target", "itemprop", "content", "data-description", "data-uid",
-                          "data-name", "href", "title", "cellpadding", "cellspacing"]:
+                          "data-name", "href", "title", "cellpadding", "cellspacing", "width"]:
             del tag[attribute]
 
     result = re.sub(r'<!.*?->', '', str(soup))  # удалить комментарии

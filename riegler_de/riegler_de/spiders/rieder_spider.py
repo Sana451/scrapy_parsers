@@ -24,11 +24,11 @@ class RiederSpiderSpider(scrapy.Spider):
     allowed_domains = ["riegler.de"]
 
     def start_requests(self):
-        with open(RESULTS_DIR / "riegler_links2.csv", "r") as links_file:
+        with open(RESULTS_DIR / "riegler.de.csv", "r") as links_file:
             reader = csv.reader(links_file)
             start_urls = list(reader)
 
-        for url in start_urls:
+        for url in start_urls[1:]:
             yield scrapy.Request(url=url[0],
                                  callback=self.parse,
                                  )
@@ -64,6 +64,14 @@ class RiederSpiderSpider(scrapy.Spider):
         try:
             field = "Type number"
             type_num = response.css("div.type-no div[itemprop=type-no]::text").get()
+            result[field] = type_num
+        except Exception as error:
+            result[field] = ""
+            my_tools.save_error(response.url, error, field, ERRORS_FILENAME)
+
+        try:
+            field = "EAN-Code"
+            type_num = response.css("div.ean div[itemprop=type-no]::text").get()
             result[field] = type_num
         except Exception as error:
             result[field] = ""

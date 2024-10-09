@@ -22,10 +22,10 @@ class ShopEndSpyderSpider(scrapy.Spider):
     # allowed_domains = ["shop.end.de"]
 
     def start_requests(self):
-        with open(RESULTS_DIR / "shop.end.de.links.csv", "r", encoding="utf-8") as shop_end_links_file:
+        with open(RESULTS_DIR / "shop.end.de4.csv", "r", encoding="utf-8") as shop_end_links_file:
             reader = csv.reader(shop_end_links_file)
             start_urls = list(reader)
-            for url in start_urls[:]:
+            for url in start_urls[1:]:
                 yield scrapy.Request(
                     url=url[0],
                     callback=self.parse,
@@ -62,8 +62,8 @@ class ShopEndSpyderSpider(scrapy.Spider):
 
         try:
             field = "Наличие"
-            price = response.xpath("//*[@data-unique-id='availability-info']//span[not(@class)]//text()").get()
-            result[field] = price.strip()
+            availability = response.xpath("//*[@data-unique-id='availability-info']//span[not(@class)]//text()").get()
+            result[field] = availability.strip()
         except Exception as error:
             result[field] = ""
             my_tools.save_error(response.url, error, field, ERRORS_FILENAME)
