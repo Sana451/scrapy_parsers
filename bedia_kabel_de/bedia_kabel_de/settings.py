@@ -1,4 +1,4 @@
-# Scrapy settings for balluff_com project
+# Scrapy settings for bedia_kabel_de project
 #
 # For simplicity, this file contains only settings considered important or
 # commonly used. You can find more settings consulting the documentation:
@@ -7,20 +7,20 @@
 #     https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 #     https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 
-BOT_NAME = "balluff_com"
+BOT_NAME = "bedia_kabel_de"
 
-SPIDER_MODULES = ["balluff_com.spiders"]
-NEWSPIDER_MODULE = "balluff_com.spiders"
+SPIDER_MODULES = ["bedia_kabel_de.spiders"]
+NEWSPIDER_MODULE = "bedia_kabel_de.spiders"
 
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
-#USER_AGENT = "balluff_com (+http://www.yourdomain.com)"
+#USER_AGENT = "bedia_kabel_de (+http://www.yourdomain.com)"
 
 # Obey robots.txt rules
 ROBOTSTXT_OBEY = True
 
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
-CONCURRENT_REQUESTS = 1
+#CONCURRENT_REQUESTS = 32
 
 # Configure a delay for requests for the same website (default: 0)
 # See https://docs.scrapy.org/en/latest/topics/settings.html#download-delay
@@ -45,13 +45,13 @@ CONCURRENT_REQUESTS = 1
 # Enable or disable spider middlewares
 # See https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 #SPIDER_MIDDLEWARES = {
-#    "balluff_com.middlewares.BalluffComSpiderMiddleware": 543,
+#    "bedia_kabel_de.middlewares.BediaKabelDeSpiderMiddleware": 543,
 #}
 
 # Enable or disable downloader middlewares
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 #DOWNLOADER_MIDDLEWARES = {
-#    "balluff_com.middlewares.BalluffComDownloaderMiddleware": 543,
+#    "bedia_kabel_de.middlewares.BediaKabelDeDownloaderMiddleware": 543,
 #}
 
 # Enable or disable extensions
@@ -63,7 +63,7 @@ CONCURRENT_REQUESTS = 1
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 #ITEM_PIPELINES = {
-#    "balluff_com.pipelines.BalluffComPipeline": 300,
+#    "bedia_kabel_de.pipelines.BediaKabelDePipeline": 300,
 #}
 
 # Enable and configure the AutoThrottle extension (disabled by default)
@@ -91,8 +91,3 @@ CONCURRENT_REQUESTS = 1
 REQUEST_FINGERPRINTER_IMPLEMENTATION = "2.7"
 TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
 FEED_EXPORT_ENCODING = "utf-8"
-
-# DOWNLOAD_HANDLERS = {
-#     "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
-#     "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
-# }

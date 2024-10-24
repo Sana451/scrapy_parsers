@@ -11,7 +11,10 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from tabulate import tabulate
 
-sys.path.insert(0, "/home/sana451/PycharmProjects/scrapy_parsers")
+if sys.platform == "linux":
+    sys.path.insert(0, "/home/sana451/PycharmProjects/scrapy_parsers")
+elif sys.platform == "win32":
+    sys.path.insert(0, r"D:\sana451\scrapy_parsers")
 from tools import my_scraping_tools as my_tools
 from bs4 import BeautifulSoup
 
@@ -24,16 +27,33 @@ RESULTS_DIR = BASE_DIR / "results"
 ERRORS_DIR = BASE_DIR / "errors"
 ERRORS_FILENAME = ERRORS_DIR / "errors.csv"
 
+options = webdriver.ChromeOptions()
+# options.add_argument("--headless=new")
+browser = webdriver.Chrome(options=options)
+browser.get("https://www.balluff.com/de-de/products/BCC032H?pf=G1102&pm=S-BCC%20SE%20SCU")
+browser.maximize_window()
+
+try:
+    WebDriverWait(browser, 10).until(
+        EC.presence_of_element_located((By.XPATH, "//*[contains(text(), 'Allem zustimmen')]"))
+    )
+    button = browser.find_element(By.XPATH, "//*[contains(text(), 'Allem zustimmen')]")
+    browser.execute_script("arguments[0].click();", button)
+    print('Приняли куки')
+    time.sleep(3)
+except Exception as e:
+    print(f"Ошибка клика по кнопке: {e}")
+
 
 class BalluffComSpiderSpider(scrapy.Spider):
     name = "balluff_com_spider"
     allowed_domains = ["balluff.com"]
 
     def start_requests(self):
-        with open(RESULTS_DIR / "balluff.com.links.csv", "r", encoding="utf-8") as f:
+        with open(RESULTS_DIR / "balluff.com.links3.csv", "r", encoding="utf-8") as f:
             reader = csv.reader(f)
             start_urls = [row[0] for row in list(reader)]
-            for url in start_urls[:1]:
+            for url in start_urls[507:]:
                 yield scrapy.Request(
                     url=url,
                     callback=self.parse,
@@ -41,6 +61,7 @@ class BalluffComSpiderSpider(scrapy.Spider):
                 )
 
     def parse(self, response):
+
         result = dict()
         result["url"] = response.url
 
@@ -95,20 +116,7 @@ class BalluffComSpiderSpider(scrapy.Spider):
             result[field] = ""
             my_tools.save_error(response.url, error, field, ERRORS_FILENAME)
 
-        browser = webdriver.Chrome()
-        browser.get("https://www.balluff.com/de-de/products/BCC032H?pf=G1102&pm=S-BCC%20SE%20SCU")
-        browser.maximize_window()
-
-        try:
-            WebDriverWait(browser, 10).until(
-                EC.presence_of_element_located((By.XPATH, "//*[contains(text(), 'Allem zustimmen')]"))
-            )
-            button = browser.find_element(By.XPATH, "//*[contains(text(), 'Allem zustimmen')]")
-            browser.execute_script("arguments[0].click();", button)
-            print('Приняли куки')
-            time.sleep(3)
-        except Exception as e:
-            print(f"Ошибка клика по кнопке: {e}")
+        browser.get(response.url)
 
         try:
             WebDriverWait(browser, 10).until(
@@ -171,8 +179,8 @@ class BalluffComSpiderSpider(scrapy.Spider):
             result[field] = ""
             my_tools.save_error(response.url, error, field, ERRORS_FILENAME)
 
-        browser.quit()
-        browser = None
+        # browser.quit()
+        # browser = None
 
         yield result
 
