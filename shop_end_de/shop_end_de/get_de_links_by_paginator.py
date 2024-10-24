@@ -17,17 +17,27 @@ categories = [
     # "https://shop.end.de/de/armaturen/antriebe-und-zubehoer/hubantriebe",
     # "https://shop.end.de/de/armaturen/antriebe-und-zubehoer/montagezubehoer/schalldaempfer",
 ]
-with open("/home/sana451/PycharmProjects/scrapy_parsers/shop_end_de/shop_end_de/results/shop.de.cats.csv",
-          "r") as cats_csv:
-    reader = csv.reader(cats_csv)
-    csv_cats = [cat[0] for cat in list(reader)]
 
-with open("/home/sana451/PycharmProjects/scrapy_parsers/shop_end_de/shop_end_de/results/shop.end.de.links3.csv",
-          "a") as csv_file:
+eng_cats = [
+    "https://shop.end.de/en/valves",
+    "https://shop.end.de/en/accessoires",
+    "https://shop.end.de/en/fittings",
+    "https://shop.end.de/en/flanges-compensator",
+    "https://shop.end.de/en/neuheiten"
+
+]
+
+# with open("/home/sana451/PycharmProjects/scrapy_parsers/shop_end_de/shop_end_de/results/shop.de.cats.csv",
+#           "r") as cats_csv:
+#     reader = csv.reader(cats_csv)
+#     csv_cats = [cat[0] for cat in list(reader)]
+
+with open("/home/sana451/PycharmProjects/scrapy_parsers/shop_end_de/shop_end_de/results/shop.end.de.links.en.csv",
+          "w") as csv_file:
     writer = csv.writer(csv_file)
 
     # for cat_url in categories[:]:
-    for cat_url in csv_cats:
+    for cat_url in eng_cats:
         try:
             i = 1
             while True:
