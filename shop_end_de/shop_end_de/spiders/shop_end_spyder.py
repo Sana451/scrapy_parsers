@@ -22,10 +22,10 @@ class ShopEndSpyderSpider(scrapy.Spider):
     # allowed_domains = ["shop.end.de"]
 
     def start_requests(self):
-        with open(RESULTS_DIR / "shop.end.de4.csv", "r", encoding="utf-8") as shop_end_links_file:
+        with open(RESULTS_DIR / "shop.end.de.links.en.csv", "r", encoding="utf-8") as shop_end_links_file:
             reader = csv.reader(shop_end_links_file)
             start_urls = list(reader)
-            for url in start_urls[1:]:
+            for url in start_urls[:]:
                 yield scrapy.Request(
                     url=url[0],
                     callback=self.parse,
@@ -87,11 +87,14 @@ class ShopEndSpyderSpider(scrapy.Spider):
 
         try:
             field = "Вес"
-            weight = response.xpath("//tr[contains(., 'Gewicht')]//td//text()").get().strip()
-            unit_of_measurement = (response.xpath(
-                "//tr[contains(., 'Gewicht')]//td//@data-th").get()
-                                   .replace("Gewicht", "").replace("[", "").replace("]", ""))
-            result[field] = weight + unit_of_measurement
+            weight = response.xpath("//tr[contains(., 'Gewicht')]//td//text()")
+            unit_of_meas = response.xpath("//tr[contains(., 'Gewicht')]//td//@data-th").get()
+            if not weight:
+                weight = response.xpath("//tr[contains(., 'Weight')]//td//text()")
+                unit_of_meas = response.xpath("//tr[contains(., 'Weight')]//td//@data-th").get()
+            res = weight.get().strip() + unit_of_meas.replace(
+                "Weight", "").replace("Gewicht", "").replace("[", "").replace("]", "")
+            result[field] = res
         except Exception as error:
             result[field] = ""
             my_tools.save_error(response.url, error, field, ERRORS_FILENAME)

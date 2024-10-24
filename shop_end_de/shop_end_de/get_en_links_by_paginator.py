@@ -18,21 +18,20 @@ categories = [
     # "https://shop.end.de/de/armaturen/antriebe-und-zubehoer/montagezubehoer/schalldaempfer",
 ]
 
-# eng_cats = [
-#     "https://shop.end.de/en/valves",
-#     "https://shop.end.de/en/accessoires",
-#     "https://shop.end.de/en/fittings",
-#     "https://shop.end.de/en/flanges-compensator",
-#     "https://shop.end.de/en/neuheiten"
-#
-# ]
+eng_cats = [
+    "https://shop.end.de/en/valves",
+    "https://shop.end.de/en/accessoires",
+    "https://shop.end.de/en/fittings",
+    "https://shop.end.de/en/flanges-compensator",
+    "https://shop.end.de/en/neuheiten"
+]
 
 # with open("/home/sana451/PycharmProjects/scrapy_parsers/shop_end_de/shop_end_de/results/shop.de.cats.csv",
 #           "r") as cats_csv:
 #     reader = csv.reader(cats_csv)
 #     csv_cats = [cat[0] for cat in list(reader)]
 
-with open("/home/sana451/PycharmProjects/scrapy_parsers/shop_end_de/shop_end_de/results/shop.end.de.links.de.csv",
+with open("/home/sana451/PycharmProjects/scrapy_parsers/shop_end_de/shop_end_de/results/shop.end.de.links.en.csv",
           "w") as csv_file:
     writer = csv.writer(csv_file)
 
@@ -43,13 +42,13 @@ with open("/home/sana451/PycharmProjects/scrapy_parsers/shop_end_de/shop_end_de/
             while True:
                 resp = requests.get(url=cat_url, params={"p": i, "product_list_limit": 72})
                 print(f"Page {i}", cat_url)
-                if "wir keine passenden Produkte" in str(resp.content) or "find products matching" in str(resp.content):
+                if "We can't" in str(resp.content) or "find products matching" in str(resp.content):
                     print("End of category!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n\n")
                     break
                 else:
                     soup = BeautifulSoup(resp.content, "html.parser")
                     links = soup.select("a.product")
-                    hrefs = [a["href"].replace("/en/valves/", "/de/armaturen/") for a in links]
+                    hrefs = [a["href"] for a in links]
                     if len(hrefs) == 0:
                         break
                     print(len(hrefs))
