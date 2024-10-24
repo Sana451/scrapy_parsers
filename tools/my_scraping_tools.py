@@ -26,7 +26,7 @@ def del_classes_AND_divs_from_html(html: str) -> str:
     for tag in soup():
         for attribute in ["class", "style", "id", "scope", "data-th",
                           "target", "itemprop", "content", "data-description", "data-uid",
-                          "data-name", "aria-label", "role"]:
+                          "data-name", "aria-label", "role", "colspan"]:
             del tag[attribute]
 
     result = re.sub(r'<!.*?->', '', str(soup))  # удалить комментарии
@@ -41,7 +41,8 @@ def del_classes_from_html(html) -> str:
     for tag in soup():
         for attribute in ["class", "style", "id", "scope", "data-th",
                           "target", "itemprop", "content", "data-description", "data-uid",
-                          "data-name", "href", "title", "cellpadding", "cellspacing", "width"]:
+                          "data-name", "href", "title", "cellpadding", "cellspacing", "width",
+                          "colspan"]:
             del tag[attribute]
 
     result = re.sub(r'<!.*?->', '', str(soup))  # удалить комментарии
